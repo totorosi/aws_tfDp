@@ -40,7 +40,7 @@ permissions:
   contents: read
 
 env:
-  TF_VERSION: '1.15.8'
+  TF_VERSION: '1.16.1'
   AWS_REGION: 'sa-east-1'
   WORKDIR: 'remote-backend'
   TF_IN_AUTOMATION: 'true'
