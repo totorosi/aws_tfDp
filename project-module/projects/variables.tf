@@ -26,19 +26,19 @@ variable "env_type" {
 variable "vpc_options" {
   description = "VPC 상세 설정 옵션"
   type = object({
-    instance_tenancy                      = optional(string, "default")
-    enable_dns_support                    = optional(bool, true)
-    enable_dns_hostnames                  = optional(bool, true)
-    assign_generated_ipv6_cidr_block      = optional(bool, false)
-    enable_network_address_usage_metrics  = optional(bool, false)
+    instance_tenancy                     = optional(string, "default")
+    enable_dns_support                   = optional(bool, true)
+    enable_dns_hostnames                 = optional(bool, true)
+    assign_generated_ipv6_cidr_block     = optional(bool, false)
+    enable_network_address_usage_metrics = optional(bool, false)
   })
 
   default = {
-    instance_tenancy                      = "default"
-    enable_dns_support                    = true
-    enable_dns_hostnames                  = true
-    assign_generated_ipv6_cidr_block      = false
-    enable_network_address_usage_metrics  = false
+    instance_tenancy                     = "default"
+    enable_dns_support                   = true
+    enable_dns_hostnames                 = true
+    assign_generated_ipv6_cidr_block     = false
+    enable_network_address_usage_metrics = false
   }
 }
 

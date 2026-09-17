@@ -33,3 +33,16 @@ variable "k8s_version" {
   type        = string
   default     = "1.35"
 }
+
+# --------------------------------------------------------------------------------
+# 아래 두 값은 root 모듈에서 module.network 의 출력값을 그대로 넘겨받습니다.
+# data 소스로 조회하면 plan 시점에 VPC 가 아직 없어 실패하므로 변수로 받습니다.
+variable "vpc_id" {
+  description = "EKS 를 배치할 VPC ID (module.network 출력값)"
+  type        = string
+}
+
+variable "cluster_subnet_ids" {
+  description = "EKS 클러스터/노드가 사용할 서브넷 ID 목록 (Type=cluster 서브넷)"
+  type        = list(string)
+}

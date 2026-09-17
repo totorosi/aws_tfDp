@@ -5,11 +5,11 @@ locals {
     Project     = "bipa17-Solution-Architect"
     Domain      = var.domain_name
     Environment = var.env_type # prod, dev, test, lab
-    Owner       = var.owner # secret.auto.tfvars 에서 주입
+    Owner       = var.owner    # secret.auto.tfvars 에서 주입
   }
 
-  key_pair      = var.key_pair
-  
+  key_pair = var.key_pair
+
   # 가용 영역을 local 블력에 변수로 정의
   azs = data.aws_availability_zones.available_az.names
 
@@ -65,6 +65,13 @@ locals {
   subnets = module.network.network.subnets
 
   mysql_sg_id = module.network.mysql_sg
+
+  # EKS 모듈에 넘길 cluster 타입 서브넷 ID 목록.
+  # data 소스로 조회하지 않고 network 모듈 출력값에서 직접 뽑아내므로
+  # Terraform 이 network -> eks 순서를 자동으로 보장합니다.
+  cluster_subnet_ids = [
+    for k, v in module.network.network.subnets : v.id if v.tags["Type"] == "cluster"
+  ]
   # ec2_options = {
   #   count                                 = var.ec2_count
   #   ami_id                                = local.ami_id

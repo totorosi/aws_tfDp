@@ -17,14 +17,16 @@ module "network" {
 
 # --------------------------------------------------------------------------------
 module "eks" {
-  source     = "../modules/eks"
+  source = "../modules/eks"
 
   key_pair   = local.key_pair
   tag_header = local.tag_header
   region     = local.region
 
-  # 모듈에 provider선언을 하게되면 depends_on을 사용할 수 없음.
-  # depends_on = [module.network]
+  # VPC 와 서브넷을 값으로 넘겨주면 network -> eks 의존 관계가 그래프에 생겨
+  # Terraform 이 순서를 알아서 보장합니다. (depends_on 불필요)
+  vpc_id             = local.vpc_id
+  cluster_subnet_ids = local.cluster_subnet_ids
 }
 
 # --------------------------------------------------------------------------------
