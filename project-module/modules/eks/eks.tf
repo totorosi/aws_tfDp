@@ -288,13 +288,16 @@ data "http" "iam_policy" {
 
 # 2. 가져온 JSON을 이용해 IAM 정책 생성
 resource "aws_iam_policy" "lb_controller" {
-  name        = "${local.tag_header}AWSLoadBalancerControllerIAMPolicy"
+  # 같은 계정에 이전 실습이 만든 동일 이름의 정책이 남아 있어 충돌합니다.
+  # (std15-ex-AWSLoadBalancerControllerIAMPolicy 가 다른 역할에 연결된 상태)
+  # 남의 리소스를 건드리지 않도록 이름을 달리합니다.
+  name        = "${local.tag_header}alb-controller-policy"
   path        = "/"
   description = "AWS Load Balancer Controller IAM Policy"
   policy      = data.http.iam_policy.response_body
 
   tags = {
-    Name = "${local.tag_header}AWSLoadBalancerControllerIAMPolicy"
+    Name = "${local.tag_header}alb-controller-policy"
   }
 }
 
@@ -314,7 +317,13 @@ data "http" "alb_controller_crds" {
 
 # 3. kubectl_manifest 리소스를 통해 클러스터에 적용
 resource "kubectl_manifest" "crd" {
-  for_each  = data.http.alb_controller_crds.response_body != "" ? toset(split("---\n", data.http.alb_controller_crds.response_body)) : []
+  # "---" 로 자르면 빈 조각이나 주석만 있는 조각이 섞여 파싱 에러가 납니다.
+  # 공백 제거 후 실제 문서(kind: 가 있는 것)만 남깁니다.
+  for_each = toset([
+    for doc in split("---\n", data.http.alb_controller_crds.response_body) :
+    doc if length(trimspace(doc)) > 0 && can(regex("(?m)^kind:", doc))
+  ])
+
   yaml_body = each.value
 }
 

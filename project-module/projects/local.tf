@@ -1,11 +1,17 @@
 locals {
+  # [주의] 값이 빈 문자열인 태그는 제외합니다.
+  # default_tags 는 모든 리소스에 붙는데, CloudFormation(SAR 스택)은
+  # 태그 값이 ""이면 "Member must have length greater than or equal to 1"로
+  # 거부합니다. domain_name 을 비워두면 바로 이 에러가 납니다.
   common_tags = {
-    Course      = "BIPA17"
-    ManageBy    = "Terraform"
-    Project     = "bipa17-Solution-Architect"
-    Domain      = var.domain_name
-    Environment = var.env_type # prod, dev, test, lab
-    Owner       = var.owner    # secret.auto.tfvars 에서 주입
+    for k, v in {
+      Course      = "BIPA17"
+      ManageBy    = "Terraform"
+      Project     = "bipa17-Solution-Architect"
+      Domain      = var.domain_name
+      Environment = var.env_type # prod, dev, test, lab
+      Owner       = var.owner    # secret.auto.tfvars 에서 주입
+    } : k => v if v != ""
   }
 
   key_pair = var.key_pair

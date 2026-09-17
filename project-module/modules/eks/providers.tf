@@ -42,6 +42,22 @@ provider "kubernetes" {
   }
 }
 
+# [중요] kubectl 프로바이더도 반드시 설정해야 합니다.
+# 이 블록이 없으면 gavinbunney/kubectl 은 기본값인 ~/.kube/config 를 읽습니다.
+# 그 파일은 이전 실습의 삭제된 클러스터를 가리킬 수 있어
+# "dial tcp: lookup ... no such host" 로 실패합니다.
+# 아래처럼 클러스터 리소스에서 직접 접속 정보를 받아오면 그 문제가 사라집니다.
+provider "kubectl" {
+  host                   = aws_eks_cluster.k8s.endpoint
+  cluster_ca_certificate = base64decode(aws_eks_cluster.k8s.certificate_authority[0].data)
+  load_config_file       = false # ~/.kube/config 를 읽지 않음
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.k8s.name]
+  }
+}
+
 provider "helm" {
   kubernetes {
     host                   = aws_eks_cluster.k8s.endpoint

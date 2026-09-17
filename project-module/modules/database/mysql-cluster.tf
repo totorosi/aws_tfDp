@@ -113,7 +113,9 @@ resource "aws_rds_cluster" "mysql_cluster" {
   engine             = "mysql"
   engine_version     = "8.0.46"
 
-  db_cluster_instance_class = "db.c6gd.medium"
+  # [주의] Multi-AZ DB 클러스터는 지원 인스턴스 클래스가 리전·엔진 버전별로 다릅니다.
+  # sa-east-1 / MySQL 8.0.46 은 db.c6gd.medium 을 지원하지 않습니다.
+  db_cluster_instance_class = var.db_cluster_instance_class
 
   # 필수: storage_type 명시 (gp3 또는 io1)
   storage_type      = "gp3"
