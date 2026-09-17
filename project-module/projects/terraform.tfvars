@@ -34,3 +34,8 @@ argocd_repo_url        = "https://github.com/totorosi/aws_tfDp.git"
 argocd_target_revision = "main"
 argocd_path            = "k8s/app"
 argocd_create_ingress  = true
+
+# ArgoCD UI 도메인. host 를 지정하면 LB Controller 가 일치하는 ACM 인증서를
+# 자동으로 찾아 HTTPS 를 붙입니다. (*.totorosi.cloud 와일드카드 인증서 사용)
+argocd_ingress_host      = "argocd.totorosi.cloud"
+argocd_route53_zone_name = "totorosi.cloud"

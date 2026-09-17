@@ -128,3 +128,15 @@ variable "argocd_certificate_arn" {
   type        = string
   default     = ""
 }
+
+variable "argocd_ingress_host" {
+  description = "ArgoCD UI 도메인 (비우면 ALB 기본 주소로 HTTP 접속)"
+  type        = string
+  default     = ""
+}
+
+variable "argocd_route53_zone_name" {
+  description = "argocd_ingress_host 의 Route53 호스팅 영역 (비우면 DNS 레코드를 만들지 않음)"
+  type        = string
+  default     = ""
+}

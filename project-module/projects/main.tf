@@ -49,6 +49,11 @@ module "argocd" {
   # UI 접속용 ALB. 인증서를 지정하면 HTTPS 도 함께 엽니다.
   create_ingress  = var.argocd_create_ingress
   certificate_arn = var.argocd_certificate_arn
+
+  # 도메인을 지정하면 HTTPS 리스너가 열리고(와일드카드 인증서 자동 탐색),
+  # 호스팅 영역까지 주면 Route53 레코드도 함께 만듭니다.
+  ingress_host      = var.argocd_ingress_host
+  route53_zone_name = var.argocd_route53_zone_name
 }
 
 # --------------------------------------------------------------------------------

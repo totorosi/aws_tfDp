@@ -25,3 +25,10 @@ output "application_name" {
   description = "생성된 ArgoCD Application 이름 (없으면 빈 값)"
   value       = var.create_application && var.git_repo_url != "" ? var.app_name : ""
 }
+
+output "url" {
+  description = "ArgoCD UI 접속 주소"
+  value = local.create_dns_record ? (
+    local.enable_https ? "https://${var.ingress_host}" : "http://${var.ingress_host}"
+  ) : try("http://${kubernetes_ingress_v1.argocd[0].status[0].load_balancer[0].ingress[0].hostname}", "생성 중")
+}

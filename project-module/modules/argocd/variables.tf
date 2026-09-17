@@ -97,3 +97,9 @@ variable "app_namespace" {
   type        = string
   default     = "web"
 }
+
+variable "route53_zone_name" {
+  description = "ingress_host 의 Route53 호스팅 영역 이름 (예: example.com). 비우면 레코드를 만들지 않습니다"
+  type        = string
+  default     = ""
+}

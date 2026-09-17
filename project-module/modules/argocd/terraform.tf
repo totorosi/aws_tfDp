@@ -12,5 +12,9 @@ terraform {
       source  = "gavinbunney/kubectl"
       version = ">= 1.14.0"
     }
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.0" # Route53 레코드 생성에 필요
+    }
   }
 }

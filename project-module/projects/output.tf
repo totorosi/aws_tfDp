@@ -137,7 +137,12 @@ output "argocd_namespace" {
 }
 
 output "argocd_url" {
-  description = "ArgoCD UI 주소 (ALB 생성에 2~3분 걸립니다)"
+  description = "ArgoCD UI 접속 주소"
+  value       = module.argocd.url
+}
+
+output "argocd_alb_hostname" {
+  description = "ArgoCD UI 의 ALB 기본 주소"
   value       = module.argocd.ingress_hostname
 }
 
