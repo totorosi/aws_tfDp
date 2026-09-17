@@ -119,6 +119,82 @@ Settings → Secrets and variables → Actions
 임시 자격 증명(`ASIA...` 로 시작)을 쓰는 경우에만 `AWS_SESSION_TOKEN` 이
 추가로 필요합니다. 장기 키(`AKIA...`)는 필요 없습니다.
 
+## 정리 (destroy)
+
+**`terraform destroy` 를 바로 실행하면 실패합니다.** 순서 문제가 있습니다.
+
+ALB 는 Terraform 이 만들지 않습니다. Ingress 를 보고 AWS Load Balancer Controller 가
+만듭니다. 그런데 destroy 는 그 컨트롤러를 먼저 지우고, 그러면 ALB 를 삭제할 주체가
+사라져 아래 세 에러가 연쇄적으로 납니다.
+
+```
+Error: Ingress (argocd/argocd-server) still exists
+Error: failed to delete release: aws-load-balancer-controller
+Error: deleting EC2 Internet Gateway ... DependencyViolation:
+       Network vpc-xxx has some mapped public address(es).
+```
+
+Ingress 에는 `ingress.k8s.aws/resources` finalizer 가 박혀 있어 컨트롤러 없이는
+지워지지 않고, 남은 ALB 의 공인 IP 가 IGW 분리를 막습니다.
+
+### 올바른 순서
+
+컨트롤러가 살아 있을 때 Ingress 를 먼저 지웁니다. 컨트롤러가 finalizer 를 처리하며
+ALB 까지 정리해 줍니다.
+
+```bash
+# 1. ArgoCD 가 Ingress 를 되살리지 못하도록 Application 부터 제거
+kubectl -n argocd delete application --all
+
+# 2. Ingress 전부 삭제 (컨트롤러가 ALB 까지 정리)
+kubectl delete ingress --all -A
+
+# 3. ALB 가 실제로 사라졌는지 확인 (0 이 될 때까지 2~3분)
+aws elbv2 describe-load-balancers --region <리전>   --query 'length(LoadBalancers)' --output text
+
+# 4. 그 다음 destroy
+cd project-module/projects
+terraform destroy
+```
+
+1번을 건너뛰면 `syncPolicy.automated` 때문에 ArgoCD 가 Ingress 를 즉시 되살립니다.
+
+### 이미 실패했다면
+
+컨트롤러가 먼저 지워진 뒤라면 수동으로 정리해야 합니다.
+
+```bash
+# 1. LB Controller 웹훅 제거
+#    파드는 없는데 웹훅 등록만 남아 모든 Ingress 작업이
+#    "no endpoints available" 로 거부됩니다. finalizer 를 떼는 patch 조차 막힙니다.
+kubectl delete validatingwebhookconfiguration aws-load-balancer-webhook --ignore-not-found
+kubectl delete mutatingwebhookconfiguration   aws-load-balancer-webhook --ignore-not-found
+
+# 2. finalizer 제거 후 Ingress 삭제
+kubectl -n argocd patch ingress argocd-server -p '{"metadata":{"finalizers":null}}' --type=merge
+kubectl -n web    patch ingress nginx         -p '{"metadata":{"finalizers":null}}' --type=merge
+
+# 3. 고아 ALB 수동 삭제
+aws elbv2 describe-load-balancers --region <리전>   --query "LoadBalancers[?VpcId=='<VPC_ID>'].LoadBalancerArn" --output text |
+  xargs -n1 aws elbv2 delete-load-balancer --region <리전> --load-balancer-arn
+
+# 4. ELB ENI 가 0 이 될 때까지 대기 후 destroy 재실행
+aws ec2 describe-network-interfaces --region <리전>   --filters "Name=vpc-id,Values=<VPC_ID>" "Name=description,Values=ELB*"   --query 'length(NetworkInterfaces)' --output text
+```
+
+### destroy 후 확인
+
+```bash
+# 연결되지 않은 Elastic IP 는 시간당 과금됩니다
+aws ec2 describe-addresses --region <리전>   --query 'Addresses[?AssociationId==null].[PublicIp,AllocationId]' --output text
+
+# 남아 있으면 (다른 실습에서 쓰지 않는지 확인 후)
+aws ec2 release-address --region <리전> --allocation-id <ID>
+
+# external-dns 가 만든 Route53 레코드는 policy 가 upsert-only 라 남습니다.
+# 필요하면 콘솔에서 직접 지우세요. (A/AAAA 와 짝이 되는 TXT 레코드까지)
+```
+
 ## 알아둘 점
 
 **플랫폼별 락 파일** — `.terraform.lock.hcl` 에 `linux_amd64` 와
@@ -131,6 +207,18 @@ terraform providers lock -platform=<플랫폼>
 **모듈 안의 provider 선언** — `modules/eks` 가 kubernetes·helm 프로바이더를
 직접 선언합니다. 이 때문에 해당 모듈에는 `depends_on` 을 쓸 수 없어,
 VPC·서브넷을 변수로 전달해 의존 관계를 만듭니다.
+
+**ALB 의 소유자는 Terraform 이 아닙니다.** Ingress 를 보고 AWS Load Balancer
+Controller 가 만듭니다. 그래서 Terraform 은 ALB 의 존재를 모르고, destroy 순서를
+스스로 잡지 못합니다. 위 "정리 (destroy)" 절차를 반드시 따르세요.
+
+**ArgoCD 는 지운 리소스를 되살립니다.** Application 의 `syncPolicy.automated.selfHeal`
+이 켜져 있어, kubectl 로 Ingress 를 지워도 즉시 다시 만듭니다. 정리할 때는 Application
+부터 지워야 합니다.
+
+**external-dns 와 Terraform 이 같은 DNS 를 관리하면 충돌합니다.** 둘 다 같은 레코드를
+소유하려 해서 한쪽이 고치면 다른 쪽이 되돌립니다. 이 저장소는 external-dns 에
+일원화했고, 그래서 `argocd_route53_zone_name` 을 비워 두었습니다.
 
 **Secrets Manager 이름 예약** — destroy 후 같은 이름으로 다시 만들면
 30일간 `already scheduled for deletion` 으로 실패할 수 있습니다.
