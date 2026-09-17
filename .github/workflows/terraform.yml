@@ -16,6 +16,10 @@
 # ##################################################################################################
 name: Terraform (project-module)
 
+# ==================================================================================================
+# 1. 트리거 조건 설정
+#    언제 이 파이프라인을 돌릴지 정합니다.
+# ==================================================================================================
 on:
   # PR 이 올라오면 plan 만 돌려서 변경 내용을 미리 확인합니다.
   pull_request:
@@ -43,11 +47,20 @@ on:
           - apply
           - destroy
 
+# ==================================================================================================
+# 2. 권한 설정
+#    GITHUB_TOKEN 에 줄 권한을 최소로 제한합니다.
+#    명시하지 않으면 저장소 기본값(넓은 권한)이 적용되므로 반드시 적어주는 편이 안전합니다.
+#    - contents: read  => 소스 코드 체크아웃에만 필요
+# ==================================================================================================
+permissions:
+  contents: read
+
 env:
   TF_VERSION: '1.15.8'
   AWS_REGION: 'sa-east-1'
   WORKDIR: 'project-module/projects'
-  # plan/apply 시 색상 코드 제거 (로그 가독성)
+  # plan/apply 시 자동화 환경임을 terraform 에 알립니다.
   TF_IN_AUTOMATION: 'true'
   # terraform 은 TF_VAR_<변수명> 형태의 환경변수를 자동으로 변수 값으로 읽습니다.
   # secret.auto.tfvars 가 git 에 없으므로 여기서 Secret 으로 대신 주입합니다.
@@ -69,48 +82,73 @@ jobs:
         working-directory: ${{ env.WORKDIR }}
 
     steps:
-      - name: 소스 체크아웃
+      # ==========================================================================================
+      # 3. 소스 코드 체크아웃
+      #    저장소 코드를 러너(가상 머신)로 내려받습니다.
+      # ==========================================================================================
+      - name: 소스 코드 체크아웃
         uses: actions/checkout@v4
 
-      - name: AWS 자격 증명 설정
+      # ==========================================================================================
+      # 4. 도구 설치
+      #    러너에 Terraform 을 설치합니다. (AWS CLI 는 ubuntu-latest 에 기본 포함)
+      # ==========================================================================================
+      - name: 도구 설치 (Terraform)
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          # plan 결과를 GitHub 요약에 출력하기 위해 wrapper 를 켭니다.
+          terraform_wrapper: true
+
+      # ==========================================================================================
+      # 5. AWS 인증 정보 설정
+      #    Secret 에 등록한 액세스 키로 AWS 에 로그인합니다.
+      # ==========================================================================================
+      - name: AWS 인증 정보 설정
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: 자격 증명 확인 (어떤 계정/사용자로 붙었는지 출력)
+      - name: 인증 확인 (어떤 계정/사용자로 붙었는지 출력)
         run: aws sts get-caller-identity
 
-      - name: Terraform 설치
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-          # plan 결과를 GitHub 요약에 예쁘게 출력하기 위해 wrapper 사용
-          terraform_wrapper: true
+      # ==========================================================================================
+      # 6. 테라폼 초기화
+      #    프로바이더를 내려받고 S3 백엔드에 연결합니다.
+      #    backend 의 bucket / dynamodb_table 은 코드에 없으므로 Secret 으로 주입합니다.
+      # ==========================================================================================
+      - name: 테라폼 초기화 (init)
+        run: |
+          terraform init -input=false -no-color \
+            -backend-config="bucket=${{ secrets.TF_BACKEND_BUCKET }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_BACKEND_DYNAMODB_TABLE }}"
 
-      - name: 포맷 검사 (실패해도 파이프라인은 계속 진행)
+      # ==========================================================================================
+      # 7. 테라폼 코드 포맷 / 문법 검증
+      #    fmt  : 들여쓰기·정렬 규칙 검사 (스타일 문제라 실패해도 파이프라인은 계속 진행)
+      #    validate : 문법과 참조 오류 검사 (실패하면 여기서 중단)
+      # ==========================================================================================
+      - name: 포맷 검사 (fmt)
         id: fmt
         run: terraform fmt -check -recursive -diff
         continue-on-error: true
 
-      # backend 의 bucket / dynamodb_table 은 코드에 없으므로 Secret 으로 주입합니다.
-      - name: Terraform Init
-        run: |
-          terraform init -input=false -no-color             -backend-config="bucket=${{ secrets.TF_BACKEND_BUCKET }}"             -backend-config="dynamodb_table=${{ secrets.TF_BACKEND_DYNAMODB_TABLE }}"
-
-      - name: Terraform Validate
+      - name: 문법 검증 (validate)
         run: terraform validate -no-color
 
-      # ----------------------------------------------------------------------------------------
-      # PLAN : PR / push / 수동(plan) 일 때 실행
-      # ----------------------------------------------------------------------------------------
-      - name: Terraform Plan
+      # ==========================================================================================
+      # 8. 변경 미리보기 (plan)
+      #    무엇이 생성/변경/삭제되는지 미리 확인합니다.
+      #    결과를 tfplan 파일로 저장해, 9단계에서 "본 그대로" 반영되도록 합니다.
+      # ==========================================================================================
+      - name: 변경 미리보기 (plan)
         id: plan
         if: github.event.inputs.action != 'destroy'
         run: terraform plan -input=false -no-color -lock-timeout=5m -out=tfplan
 
-      - name: Plan 결과를 요약에 출력
+      - name: plan 결과를 실행 요약에 출력
         if: github.event.inputs.action != 'destroy'
         # plan 출력에 백틱/$() 가 섞여 있어도 쉘이 해석하지 않도록 env 로 넘깁니다.
         env:
@@ -123,7 +161,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Plan 파일 아티팩트로 업로드
+      - name: plan 파일 아티팩트로 업로드
         if: github.event.inputs.action != 'destroy'
         uses: actions/upload-artifact@v4
         with:
@@ -131,16 +169,15 @@ jobs:
           path: ${{ env.WORKDIR }}/tfplan
           retention-days: 5
 
-      # ----------------------------------------------------------------------------------------
-      # APPLY : Actions 탭에서 action=apply 를 고른 경우에만 실행
-      # ----------------------------------------------------------------------------------------
-      - name: Terraform Apply
+      # ==========================================================================================
+      # 9. 인프라 반영 (apply / destroy)
+      #    Actions 탭에서 직접 실행할 때만 동작합니다. PR/push 로는 절대 반영되지 않습니다.
+      #    apply 는 8단계에서 저장한 tfplan 을 그대로 적용합니다.
+      # ==========================================================================================
+      - name: 인프라 반영 (apply)
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply'
         run: terraform apply -input=false -no-color -lock-timeout=5m -auto-approve tfplan
 
-      # ----------------------------------------------------------------------------------------
-      # DESTROY : Actions 탭에서 action=destroy 를 고른 경우에만 실행
-      # ----------------------------------------------------------------------------------------
-      - name: Terraform Destroy
+      - name: 인프라 삭제 (destroy)
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
         run: terraform destroy -input=false -no-color -lock-timeout=5m -auto-approve

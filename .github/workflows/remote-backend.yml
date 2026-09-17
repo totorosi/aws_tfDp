@@ -5,15 +5,21 @@
 #        따라서 버킷이 아직 없는 최초 1회는 이 워크플로우가 아니라 로컬에서 아래 순서로 실행하세요.
 #
 #          cd remote-backend
+#          cp terraform.tfvars.example terraform.tfvars   # 본인 값 입력
+#          cp backend.hcl.example      backend.hcl        # 본인 값 입력
 #          # providers.tf 의 backend "s3" 블록을 주석 처리
 #          terraform init && terraform apply
 #          # 주석 해제 후
-#          terraform init -migrate-state
+#          terraform init -backend-config=backend.hcl -migrate-state
 #
 #        버킷이 만들어진 뒤부터는 이 워크플로우로 관리하면 됩니다.
 # ##################################################################################################
 name: Terraform (remote-backend)
 
+# ==================================================================================================
+# 1. 트리거 조건 설정
+#    상태 저장소는 실수로 바뀌면 위험하므로 자동 실행 없이 수동으로만 돌립니다.
+# ==================================================================================================
 on:
   workflow_dispatch:
     inputs:
@@ -25,6 +31,13 @@ on:
         options:
           - plan
           - apply
+
+# ==================================================================================================
+# 2. 권한 설정
+#    GITHUB_TOKEN 에 줄 권한을 최소로 제한합니다. (체크아웃에 필요한 읽기 권한만)
+# ==================================================================================================
+permissions:
+  contents: read
 
 env:
   TF_VERSION: '1.15.8'
@@ -49,39 +62,63 @@ jobs:
         working-directory: ${{ env.WORKDIR }}
 
     steps:
-      - name: 소스 체크아웃
+      # ==========================================================================================
+      # 3. 소스 코드 체크아웃
+      # ==========================================================================================
+      - name: 소스 코드 체크아웃
         uses: actions/checkout@v4
 
-      - name: AWS 자격 증명 설정
+      # ==========================================================================================
+      # 4. 도구 설치
+      # ==========================================================================================
+      - name: 도구 설치 (Terraform)
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: true
+
+      # ==========================================================================================
+      # 5. AWS 인증 정보 설정
+      # ==========================================================================================
+      - name: AWS 인증 정보 설정
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: 자격 증명 확인
+      - name: 인증 확인
         run: aws sts get-caller-identity
 
-      - name: Terraform 설치
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-          terraform_wrapper: true
-
-      # backend 의 bucket / dynamodb_table 은 코드에 없으므로 Secret 으로 주입합니다.
-      - name: Terraform Init
+      # ==========================================================================================
+      # 6. 테라폼 초기화
+      #    backend 의 bucket / dynamodb_table 은 코드에 없으므로 Secret 으로 주입합니다.
+      # ==========================================================================================
+      - name: 테라폼 초기화 (init)
         run: |
-          terraform init -input=false -no-color             -backend-config="bucket=${{ secrets.TF_BACKEND_BUCKET }}"             -backend-config="dynamodb_table=${{ secrets.TF_BACKEND_DYNAMODB_TABLE }}"
+          terraform init -input=false -no-color \
+            -backend-config="bucket=${{ secrets.TF_BACKEND_BUCKET }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_BACKEND_DYNAMODB_TABLE }}"
 
-      - name: Terraform Validate
+      # ==========================================================================================
+      # 7. 테라폼 코드 포맷 / 문법 검증
+      # ==========================================================================================
+      - name: 포맷 검사 (fmt)
+        id: fmt
+        run: terraform fmt -check -recursive -diff
+        continue-on-error: true
+
+      - name: 문법 검증 (validate)
         run: terraform validate -no-color
 
-      - name: Terraform Plan
+      # ==========================================================================================
+      # 8. 변경 미리보기 (plan)
+      # ==========================================================================================
+      - name: 변경 미리보기 (plan)
         id: plan
         run: terraform plan -input=false -no-color -lock-timeout=5m -out=tfplan
 
-      - name: Plan 결과를 요약에 출력
-        # plan 출력에 백틱/$() 가 섞여 있어도 쉘이 해석하지 않도록 env 로 넘깁니다.
+      - name: plan 결과를 실행 요약에 출력
         env:
           PLAN_STDOUT: ${{ steps.plan.outputs.stdout }}
         run: |
@@ -92,6 +129,10 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Terraform Apply
+      # ==========================================================================================
+      # 9. 인프라 반영 (apply)
+      #    action=apply 를 고른 경우에만, 8단계에서 저장한 tfplan 을 그대로 적용합니다.
+      # ==========================================================================================
+      - name: 인프라 반영 (apply)
         if: github.event.inputs.action == 'apply'
         run: terraform apply -input=false -no-color -lock-timeout=5m -auto-approve tfplan
