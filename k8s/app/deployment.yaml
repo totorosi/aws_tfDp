@@ -9,7 +9,7 @@ metadata:
 spec:
   # replicas 를 여기서 고정합니다. HPA 를 붙이면 이 줄을 지워야
   # ArgoCD 의 selfHeal 과 HPA 가 서로 숫자를 되돌리며 싸우지 않습니다.
-  replicas: 2
+  replicas: 3
 
   strategy:
     type: RollingUpdate
