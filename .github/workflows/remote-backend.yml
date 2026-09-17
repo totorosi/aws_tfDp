@@ -86,6 +86,12 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+          # [세션 토큰이 필요한 경우]
+          # 아래 aws-session-token 은 "임시 자격 증명"일 때만 필요합니다.
+          #   AKIA... 로 시작 = IAM 사용자의 장기 키  -> 토큰 불필요 (현재 우리 방식)
+          #   ASIA... 로 시작 = STS 임시 자격 증명    -> 토큰 필수 + 수 시간 뒤 만료
+          # 임시 키를 쓰게 되면 아래 주석을 풀고 Secret 에 AWS_SESSION_TOKEN 을 추가하세요.
+          # aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
 
       - name: 인증 확인
         run: aws sts get-caller-identity
