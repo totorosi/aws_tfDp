@@ -1,0 +1,17 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "tfstate", "tfvars", "tfplan", "terraformrc", "envrc", "hashicorp",
+    "gavinbunney", "kubectl", "kubeconfig", "ehthumbs", "noncurrent",
+    "dynamodb", "serverlessrepo", "secretsmanager", "AKIA", "ASIA",
+    "vpce", "nacl", "IRSA", "subnets", "autoscaling", "bipa", "totorosi",
+    "eksctl", "kustomization", "argocd", "noreply", "OIDC", "PITR"
+  ],
+  "ignorePaths": [
+    ".git/**", "**/.terraform/**", "*.lock.hcl"
+  ],
+  "ignoreRegExpList": [
+    "/[가-힣]+/g"
+  ]
+}

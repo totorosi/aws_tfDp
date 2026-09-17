@@ -252,52 +252,14 @@ resource "aws_db_proxy_target" "proxy_target_cluster" {
 
 
 # ################################################################################
-# [주석 처리됨] DB 초기화용 null_resource
+# [참고] DB 초기화(init.sql 실행)는 테라폼에 넣지 않았습니다.
 # --------------------------------------------------------------------------------
-# 원본 코드는 강사님 환경 전용 값이 하드코딩되어 있어 그대로 두면 apply가 실패합니다.
-#   - ~/.ssh/ian-key-pair.pem  : 강사님 로컬 PC의 키 파일 경로
-#   - ubuntu@13.232.155.25     : 강사님의 ap-south-1 NAT 인스턴스 공인 IP
-#   - ssh / jq / mysql-client  : 실행 머신(및 GitHub Actions 러너)에 필요
-# RDS Proxy는 프라이빗 서브넷에 있으므로, VPC 안의 배스천(NAT/Bastion) 인스턴스를 거쳐야 합니다.
-# 사용하려면 아래 주석을 풀고 KEY_PATH / BASTION_HOST 를 본인 값으로 바꾸세요.
+# RDS Proxy 는 프라이빗 서브넷에 있어 외부에서 직접 붙을 수 없고, VPC 안의
+# 배스천(NAT/Bastion) 인스턴스를 거쳐야 합니다. 또 ssh / jq / mysql-client 가
+# 실행 머신에 있어야 해서 GitHub Actions 러너에서는 동작하지 않습니다.
+#
+# 초기화가 필요하면 apply 완료 후 배스천에 접속해 수동으로 실행하세요.
+#   1) terraform output rds_get_password_command  로 비밀번호 조회 명령을 확인
+#   2) 배스천 접속 후 mysql-client 설치
+#   3) mysql -h <proxy_endpoint> -P 3306 -u <username> -p < init.sql
 # ################################################################################
-# # RDS 인스턴스 또는 클러스터 생성 완료 후, 엔드포인트와 비밀번호 정보를 참조합니다.
-# resource "null_resource" "db_initializer" {
-#   # RDS 리소스 생성 및 데이터베이스가 완전히 준비될 때까지 대기하도록 의존성 설정
-#   depends_on = [
-#     aws_rds_cluster.mysql_cluster,
-#     aws_db_proxy.proxy,
-#     aws_db_proxy_target.proxy_target_cluster,
-#     aws_secretsmanager_secret_version.mysql_secret_version
-#   ]
-#
-#   # # SQL 파일 내용이나 연결 정보가 바뀔 때마다 스크립트를 다시 실행하고 싶다면 triggers 활용 가능
-#   # triggers = {
-#   #   script_sha1   = filesha1("${path.module}/init.sql")
-#   #   secret_id     = aws_secretsmanager_secret.mysql_secrets_manager.id
-#   # }
-#
-#   provisioner "local-exec" {
-#     command = <<EOT
-#       echo "MySQL 생성 후 1회 초기화 실행 스크립트"
-#       # 1. 로컬 환경에서 AWS CLI를 이용해 Secrets Manager 조회
-#       SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "${aws_secretsmanager_secret.mysql_secrets_manager.id}" --query 'SecretString' --output text)
-#       DB_USER=$(echo "$SECRET_JSON" | jq -r '.username')
-#       DB_PASS=$(echo "$SECRET_JSON" | jq -r '.password')
-#       DB_HOST="${aws_db_proxy.proxy.endpoint}"
-#       DB_PORT=$(echo "$SECRET_JSON" | jq -r '.port')
-#       # 2. SSH를 통해 원격 인스턴스로 접속하며, 로컬의 init.sql 파일 내용을 원격의 mysql로 파이프 전송
-#       ssh -o StrictHostKeyChecking=no -i "~/.ssh/ian-key-pair.pem" ubuntu@13.232.155.25 \
-#         "sudo apt update -y && sudo apt install -y mysql-client > /dev/null 2>&1; mysql -h '$DB_HOST' -P '$DB_PORT' -u '$DB_USER' -p'$DB_PASS'" < "${path.module}/init.sql"
-#       EOT
-#   }
-# }
-
-# 위 provisioner {} 블럭의 경우 코드 엔터(\r)로 인한 에러가 발생할 수 있습니다.
-# 이경우 아래 명령을 실행해주세요.
-# [방법 1]
-# dos2unix ../modules/database/mysql-cluster.tf
-# dos2unix ../modules/database/init.sql
-
-# [방법 2]
-# tr -d '\r' < ../modules/database/mysql-cluster.tf > ../modules/database/mysql-cluster_lf.tf && mv ../modules/database/mysql-cluster_lf.tf ../modules/database/mysql-cluster.tf
