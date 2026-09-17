@@ -27,7 +27,7 @@ resource "aws_nat_gateway" "this" {
   allocation_id = aws_eip.this[count.index].id
 
   # keys() 함수로 이름 목록을 만든 뒤, 그중 첫 번째([0]) 이름의 ID를 가져옵니다.
-  # 예: keys(aws_subnet.ian_public_subnets) -> ["pub-a", "pub-b", "pub-c"]
+  # 예: keys(aws_subnet.this) -> ["public1a", "public1b", "public1c"]
   subnet_id = aws_subnet.this["public${split("-",local.azs[0])[2]}"].id
   
   # IGW를 지정하여 최종적인 대문을 정의 해줍니다.

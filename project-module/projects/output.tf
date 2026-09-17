@@ -3,31 +3,31 @@
 # ================================================================================
 output "vpc_id" {
   description = "생성된 VPC ID"
-  value       = module.mumbai_network.network.vpc.id
+  value       = module.network.network.vpc.id
 }
 
 output "vpc_cidr_block" {
   description = "VPC CIDR 블록"
-  value       = module.mumbai_network.network.vpc.cidr_block
+  value       = module.network.network.vpc.cidr_block
 }
 
 output "subnet_ids" {
   description = "서브넷 이름 -> 서브넷 ID 맵"
-  value       = { for k, v in module.mumbai_network.network.subnets : k => v.id }
+  value       = { for k, v in module.network.network.subnets : k => v.id }
 }
 
 output "subnets_by_type" {
   description = "서브넷 타입(public/private/cluster) -> 서브넷 ID 목록"
   value = {
     for type in var.subnet_type : type => [
-      for k, v in module.mumbai_network.network.subnets : v.id if v.tags["Type"] == type
+      for k, v in module.network.network.subnets : v.id if v.tags["Type"] == type
     ]
   }
 }
 
 output "mysql_security_group_id" {
   description = "MySQL 용 보안 그룹 ID"
-  value       = module.mumbai_network.mysql_sg
+  value       = module.network.mysql_sg
 }
 
 # ################################################################################

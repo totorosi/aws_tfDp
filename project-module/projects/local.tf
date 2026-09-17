@@ -61,10 +61,10 @@ locals {
   region = data.aws_region.current.region
 
 
-  vpc_id  = module.mumbai_network.network.vpc.id
-  subnets = module.mumbai_network.network.subnets
+  vpc_id  = module.network.network.vpc.id
+  subnets = module.network.network.subnets
 
-  mysql_sg_id = module.mumbai_network.mysql_sg
+  mysql_sg_id = module.network.mysql_sg
   # ec2_options = {
   #   count                                 = var.ec2_count
   #   ami_id                                = local.ami_id

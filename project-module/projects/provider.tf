@@ -56,13 +56,3 @@ provider "aws" {
   }
 }
 
-# 별칭을 사용한 추가 리전 (서울)
-provider "aws" {
-  alias  = "seoul"
-  region = "ap-northeast-2"
-
-  default_tags {
-    tags = local.common_tags
-  }
-}
-

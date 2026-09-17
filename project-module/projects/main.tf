@@ -1,6 +1,6 @@
-module "mumbai_network" {
+module "network" {
   source = "../modules/network"
-  # providers = { aws = aws.seoul }
+
   azs                = local.azs
   vpc_cidr_block     = local.vpc_cidr_block
   subnet_map         = local.subnet_map
@@ -24,7 +24,7 @@ module "eks" {
   region     = local.region
 
   # 모듈에 provider선언을 하게되면 depends_on을 사용할 수 없음.
-  # depends_on = [module.mumbai_network]
+  # depends_on = [module.network]
 }
 
 # --------------------------------------------------------------------------------

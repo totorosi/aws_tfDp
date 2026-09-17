@@ -7,7 +7,7 @@ cidr_header         = "10.0"
 env_type            = "ex" # Name Tag에 사용됨 (prod, dev, test, lab, ex)
 
 # Domain Name
-domain_name         = "hands-on.kr"
+domain_name         = "" # 보유한 도메인이 있으면 입력 (Domain 태그에만 사용됨)
 
 subnet_type         = ["public", "private", "cluster"]
 
@@ -22,6 +22,6 @@ ami_type            = "ubuntu2404"
 #   volume_size                = 30
 #   volume_type                = "gp3"
 #   delete_on_termination      = true
-#   key_name                   = "ian-ex-key"
+#   key_name                   = "<본인-키페어-이름>"
 #   vpc_security_group_ids     = []
 # }

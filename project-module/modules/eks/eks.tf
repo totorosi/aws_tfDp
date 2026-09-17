@@ -200,7 +200,7 @@ resource "aws_launch_template" "launch_template" {
   }
 }
 
-# 노드 그룹 생성: subnet_ids      = data.aws_subnets.ian_cluster_subnets.ids
+# 노드 그룹 생성: subnet_ids = data.aws_subnets.cluster_subnets.ids
 resource "aws_eks_node_group" "eks_node_group" {
   node_group_name = "${local.tag_header}eks-node-group"
   cluster_name    = aws_eks_cluster.k8s.name
