@@ -1,0 +1,58 @@
+# 검증용 nginx. 공개 이미지를 쓰므로 ECR 빌드 없이 바로 뜹니다.
+# ECR 이미지로 바꿀 때는 kustomization.yaml 의 images 항목을 쓰면
+# 이 파일을 건드리지 않아도 됩니다.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: web
+spec:
+  # replicas 를 여기서 고정합니다. HPA 를 붙이면 이 줄을 지워야
+  # ArgoCD 의 selfHeal 과 HPA 가 서로 숫자를 되돌리며 싸우지 않습니다.
+  replicas: 2
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # 새 파드가 뜬 뒤 옛 파드를 내려서 배포 중에도 받을 수 있는 파드가 줄지 않게 합니다.
+      maxSurge: 1
+      maxUnavailable: 0
+
+  selector:
+    matchLabels:
+      app: nginx
+
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: public.ecr.aws/nginx/nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+
+          # readiness: 트래픽을 받을 준비가 됐는가. 실패하면 Service 에서 뺍니다.
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 5
+
+          # liveness: 살아있는가. 실패하면 컨테이너를 재시작합니다.
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10

@@ -25,3 +25,12 @@ ami_type = "ubuntu2404"
 #   key_name                   = "<본인-키페어-이름>"
 #   vpc_security_group_ids     = []
 # }
+
+# ################################################################################
+# ArgoCD
+# ================================================================================
+# ArgoCD 가 이 저장소의 k8s/app 을 보고 클러스터를 맞춥니다.
+argocd_repo_url        = "https://github.com/totorosi/aws_tfDp.git"
+argocd_target_revision = "main"
+argocd_path            = "k8s/app"
+argocd_create_ingress  = true

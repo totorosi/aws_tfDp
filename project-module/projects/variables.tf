@@ -96,3 +96,35 @@ variable "ami_type" {
   type        = string
   default     = ""
 }
+# ################################################################################
+# ArgoCD
+# ================================================================================
+variable "argocd_repo_url" {
+  description = "ArgoCD 가 동기화할 Git 저장소 주소 (비우면 Application 을 만들지 않음)"
+  type        = string
+  default     = ""
+}
+
+variable "argocd_target_revision" {
+  description = "동기화할 브랜치/태그"
+  type        = string
+  default     = "main"
+}
+
+variable "argocd_path" {
+  description = "저장소 내 매니페스트 경로"
+  type        = string
+  default     = "k8s/app"
+}
+
+variable "argocd_create_ingress" {
+  description = "ArgoCD UI 용 ALB Ingress 생성 여부"
+  type        = bool
+  default     = true
+}
+
+variable "argocd_certificate_arn" {
+  description = "ArgoCD UI HTTPS 용 ACM 인증서 ARN (비우면 HTTP 80 만)"
+  type        = string
+  default     = ""
+}

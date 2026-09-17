@@ -1,0 +1,36 @@
+# 이 Ingress 를 AWS Load Balancer Controller 가 보고 ALB 를 만듭니다.
+# Terraform 이 aws_lb 를 직접 만들지 않습니다.
+#
+# ALB 가 뜨는 조건:
+#   - LB Controller 가 kube-system 에 떠 있을 것 (modules/eks 가 설치)
+#   - public 서브넷에 kubernetes.io/role/elb = 1 태그가 있을 것 (modules/network 가 부여)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx
+  namespace: web
+  annotations:
+    # internet-facing: 인터넷에서 닿습니다. internal: VPC 안에서만.
+    alb.ingress.kubernetes.io/scheme: internet-facing
+
+    # ip: 파드 IP 로 직접 보냅니다. instance: NodePort 를 거칩니다.
+    alb.ingress.kubernetes.io/target-type: ip
+
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /
+
+    # HTTPS 를 쓰려면 아래 두 줄의 주석을 풀고 인증서 ARN 을 넣으세요.
+    # alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:<리전>:<계정>:certificate/<ID>
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx
+                port:
+                  number: 80

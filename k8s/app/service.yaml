@@ -1,0 +1,14 @@
+# 외부 노출은 ALB(Ingress)가 담당하므로 Service 는 ClusterIP 로 둡니다.
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  namespace: web
+spec:
+  type: ClusterIP
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80

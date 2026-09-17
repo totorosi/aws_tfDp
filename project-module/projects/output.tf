@@ -76,43 +76,44 @@ output "website_url" {
   value       = module.static_web_site.website_url
 }
 
+# [비활성화] module "rds" 주석 처리에 맞춰 함께 비활성화했습니다.
 # ################################################################################
 # Database (RDS + Proxy + Secrets Manager)
 # ================================================================================
-output "rds_cluster_endpoint" {
-  description = "RDS 클러스터 쓰기(Writer) 엔드포인트"
-  value       = module.rds.cluster_endpoint
-}
-
-output "rds_reader_endpoint" {
-  description = "RDS 클러스터 읽기(Reader) 엔드포인트"
-  value       = module.rds.cluster_reader_endpoint
-}
-
-output "rds_proxy_endpoint" {
-  description = "RDS Proxy 엔드포인트 (애플리케이션은 이 주소로 접속합니다)"
-  value       = module.rds.proxy_endpoint
-}
-
-output "rds_database_name" {
-  description = "최초 생성되는 데이터베이스 이름"
-  value       = module.rds.database_name
-}
-
-output "rds_master_username" {
-  description = "RDS 마스터 사용자 이름"
-  value       = module.rds.master_username
-}
-
-output "rds_secret_name" {
-  description = "DB 접속 정보가 담긴 Secrets Manager 시크릿 이름"
-  value       = module.rds.secret_name
-}
-
-output "rds_get_password_command" {
-  description = "DB 비밀번호 조회 명령어 (비밀번호 자체는 출력하지 않습니다)"
-  value       = module.rds.get_secret_command
-}
+# output "rds_cluster_endpoint" {
+#   description = "RDS 클러스터 쓰기(Writer) 엔드포인트"
+#   value       = module.rds.cluster_endpoint
+# }
+#
+# output "rds_reader_endpoint" {
+#   description = "RDS 클러스터 읽기(Reader) 엔드포인트"
+#   value       = module.rds.cluster_reader_endpoint
+# }
+#
+# output "rds_proxy_endpoint" {
+#   description = "RDS Proxy 엔드포인트 (애플리케이션은 이 주소로 접속합니다)"
+#   value       = module.rds.proxy_endpoint
+# }
+#
+# output "rds_database_name" {
+#   description = "최초 생성되는 데이터베이스 이름"
+#   value       = module.rds.database_name
+# }
+#
+# output "rds_master_username" {
+#   description = "RDS 마스터 사용자 이름"
+#   value       = module.rds.master_username
+# }
+#
+# output "rds_secret_name" {
+#   description = "DB 접속 정보가 담긴 Secrets Manager 시크릿 이름"
+#   value       = module.rds.secret_name
+# }
+#
+# output "rds_get_password_command" {
+#   description = "DB 비밀번호 조회 명령어 (비밀번호 자체는 출력하지 않습니다)"
+#   value       = module.rds.get_secret_command
+# }
 
 # ################################################################################
 # 공통 정보
@@ -125,4 +126,27 @@ output "region" {
 output "tag_header" {
   description = "모든 리소스 이름에 붙는 접두사"
   value       = local.tag_header
+}
+
+# ################################################################################
+# ArgoCD
+# ================================================================================
+output "argocd_namespace" {
+  description = "ArgoCD 네임스페이스"
+  value       = module.argocd.namespace
+}
+
+output "argocd_url" {
+  description = "ArgoCD UI 주소 (ALB 생성에 2~3분 걸립니다)"
+  value       = module.argocd.ingress_hostname
+}
+
+output "argocd_initial_password_command" {
+  description = "ArgoCD admin 초기 비밀번호 조회 명령"
+  value       = module.argocd.initial_password_command
+}
+
+output "argocd_application_name" {
+  description = "생성된 ArgoCD Application 이름"
+  value       = module.argocd.application_name
 }

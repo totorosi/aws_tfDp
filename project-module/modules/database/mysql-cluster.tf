@@ -30,6 +30,13 @@ resource "aws_security_group" "lambda_sg" {
 resource "aws_secretsmanager_secret" "mysql_secrets_manager" {
   description = "RDS 데이터베이스 비밀번호"
   name        = "${local.tag_header}mysql/secrets" # 콘솔에 표시될 이름
+
+  # [중요] Secrets Manager 는 삭제해도 이름을 기본 30일간 예약합니다.
+  # 그 사이 같은 이름으로 다시 만들면 apply 가 아래 에러로 깨집니다.
+  #   InvalidRequestException: You can't create this secret because a secret with
+  #   this name is already scheduled for deletion.
+  # 실습 환경에서는 0(즉시 삭제)으로 두어야 destroy -> apply 반복이 가능합니다.
+  recovery_window_in_days = 0
 }
 # 2. JSON형식으로 보안암호 지정
 resource "aws_secretsmanager_secret_version" "mysql_secret_version" {
