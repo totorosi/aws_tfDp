@@ -66,13 +66,13 @@ jobs:
       # 3. 소스 코드 체크아웃
       # ==========================================================================================
       - name: 소스 코드 체크아웃
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # ==========================================================================================
       # 4. 도구 설치
       # ==========================================================================================
       - name: 도구 설치 (Terraform)
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: true
@@ -81,7 +81,7 @@ jobs:
       # 5. AWS 인증 정보 설정
       # ==========================================================================================
       - name: AWS 인증 정보 설정
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

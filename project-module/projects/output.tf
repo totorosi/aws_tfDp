@@ -155,3 +155,16 @@ output "argocd_application_name" {
   description = "생성된 ArgoCD Application 이름"
   value       = module.argocd.application_name
 }
+
+# ################################################################################
+# external-dns
+# ================================================================================
+output "external_dns_role_arn" {
+  description = "external-dns 가 사용하는 IAM 역할 ARN"
+  value       = module.external_dns.role_arn
+}
+
+output "external_dns_logs_command" {
+  description = "external-dns 동작 로그 확인 명령"
+  value       = module.external_dns.logs_command
+}

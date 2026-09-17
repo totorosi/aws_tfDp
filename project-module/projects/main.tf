@@ -31,6 +31,26 @@ module "eks" {
 
 # --------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------
+module "external_dns" {
+  source = "../modules/external-dns"
+
+  # 클러스터 접속 정보 (eks 모듈 출력값)
+  cluster_name           = module.eks.cluster_name
+  cluster_endpoint       = module.eks.cluster_endpoint
+  cluster_ca_certificate = module.eks.cluster_certificate_authority_data
+  oidc_provider_arn      = module.eks.oidc_provider_arn
+
+  tag_header = local.tag_header
+
+  # 관리할 도메인. 비워두면 모듈이 아무 레코드도 만들지 않습니다.
+  domain_filters = var.external_dns_domains
+
+  # upsert-only: 레코드를 만들고 고치기만 하고 지우지는 않습니다.
+  policy = var.external_dns_policy
+}
+
+# --------------------------------------------------------------------------------
 module "argocd" {
   source = "../modules/argocd"
 

@@ -140,3 +140,18 @@ variable "argocd_route53_zone_name" {
   type        = string
   default     = ""
 }
+
+# ################################################################################
+# external-dns
+# ================================================================================
+variable "external_dns_domains" {
+  description = "external-dns 가 관리할 도메인 목록 (비우면 아무 레코드도 만들지 않음)"
+  type        = list(string)
+  default     = []
+}
+
+variable "external_dns_policy" {
+  description = "upsert-only(생성·수정만) 또는 sync(Ingress 삭제 시 레코드도 삭제)"
+  type        = string
+  default     = "upsert-only"
+}
