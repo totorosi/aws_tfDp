@@ -1,0 +1,146 @@
+# ##################################################################################################
+# project-module/projects 를 배포하는 메인 파이프라인
+# --------------------------------------------------------------------------------------------------
+# [사전 준비]
+#  1) remote-backend 디렉터리를 로컬에서 1회 apply 해서 S3 버킷 + DynamoDB 테이블을 먼저 만드세요.
+#  2) sa-east-1 리전에 EC2 키 페어를 미리 만들어 두세요.
+#  3) GitHub 저장소 > Settings > Secrets and variables > Actions 에 아래 6개를 Secret 으로 등록하세요.
+#       AWS_ACCESS_KEY_ID          IAM 사용자의 액세스 키
+#       AWS_SECRET_ACCESS_KEY      해당 시크릿 키
+#       TF_BACKEND_BUCKET          상태 저장 S3 버킷 이름
+#       TF_BACKEND_DYNAMODB_TABLE  상태 잠금 DynamoDB 테이블 이름
+#       TF_VAR_OWNER               리소스 이름 접두사 (보통 본인 IAM 사용자명)
+#       TF_VAR_KEY_PAIR            EC2 키 페어 이름
+#
+# 계정 식별 정보는 코드에 남기지 않고 전부 Secret 으로 주입합니다.
+# ##################################################################################################
+name: Terraform (project-module)
+
+on:
+  # PR 이 올라오면 plan 만 돌려서 변경 내용을 미리 확인합니다.
+  pull_request:
+    paths:
+      - 'project-module/**'
+      - '.github/workflows/terraform.yml'
+
+  # main 브랜치에 push 되면 plan 까지만 자동 실행합니다. (apply 는 수동)
+  push:
+    branches: [main]
+    paths:
+      - 'project-module/**'
+      - '.github/workflows/terraform.yml'
+
+  # Actions 탭에서 직접 실행 (plan / apply / destroy 선택)
+  workflow_dispatch:
+    inputs:
+      action:
+        description: '실행할 terraform 명령'
+        required: true
+        type: choice
+        default: plan
+        options:
+          - plan
+          - apply
+          - destroy
+
+env:
+  TF_VERSION: '1.15.8'
+  AWS_REGION: 'sa-east-1'
+  WORKDIR: 'project-module/projects'
+  # plan/apply 시 색상 코드 제거 (로그 가독성)
+  TF_IN_AUTOMATION: 'true'
+  # terraform 은 TF_VAR_<변수명> 형태의 환경변수를 자동으로 변수 값으로 읽습니다.
+  # secret.auto.tfvars 가 git 에 없으므로 여기서 Secret 으로 대신 주입합니다.
+  TF_VAR_owner: ${{ secrets.TF_VAR_OWNER }}
+  TF_VAR_key_pair: ${{ secrets.TF_VAR_KEY_PAIR }}
+
+# 같은 브랜치에서 동시에 돌면 state 잠금(lock) 충돌이 나므로 순차 실행시킵니다.
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  terraform:
+    name: ${{ github.event.inputs.action || 'plan' }}
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ${{ env.WORKDIR }}
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: AWS 자격 증명 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: 자격 증명 확인 (어떤 계정/사용자로 붙었는지 출력)
+        run: aws sts get-caller-identity
+
+      - name: Terraform 설치
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          # plan 결과를 GitHub 요약에 예쁘게 출력하기 위해 wrapper 사용
+          terraform_wrapper: true
+
+      - name: 포맷 검사 (실패해도 파이프라인은 계속 진행)
+        id: fmt
+        run: terraform fmt -check -recursive -diff
+        continue-on-error: true
+
+      # backend 의 bucket / dynamodb_table 은 코드에 없으므로 Secret 으로 주입합니다.
+      - name: Terraform Init
+        run: |
+          terraform init -input=false -no-color             -backend-config="bucket=${{ secrets.TF_BACKEND_BUCKET }}"             -backend-config="dynamodb_table=${{ secrets.TF_BACKEND_DYNAMODB_TABLE }}"
+
+      - name: Terraform Validate
+        run: terraform validate -no-color
+
+      # ----------------------------------------------------------------------------------------
+      # PLAN : PR / push / 수동(plan) 일 때 실행
+      # ----------------------------------------------------------------------------------------
+      - name: Terraform Plan
+        id: plan
+        if: github.event.inputs.action != 'destroy'
+        run: terraform plan -input=false -no-color -lock-timeout=5m -out=tfplan
+
+      - name: Plan 결과를 요약에 출력
+        if: github.event.inputs.action != 'destroy'
+        # plan 출력에 백틱/$() 가 섞여 있어도 쉘이 해석하지 않도록 env 로 넘깁니다.
+        env:
+          PLAN_STDOUT: ${{ steps.plan.outputs.stdout }}
+        run: |
+          {
+            echo '### Terraform Plan'
+            echo '```terraform'
+            echo "$PLAN_STDOUT" | head -c 900000
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Plan 파일 아티팩트로 업로드
+        if: github.event.inputs.action != 'destroy'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ github.run_id }}
+          path: ${{ env.WORKDIR }}/tfplan
+          retention-days: 5
+
+      # ----------------------------------------------------------------------------------------
+      # APPLY : Actions 탭에서 action=apply 를 고른 경우에만 실행
+      # ----------------------------------------------------------------------------------------
+      - name: Terraform Apply
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply'
+        run: terraform apply -input=false -no-color -lock-timeout=5m -auto-approve tfplan
+
+      # ----------------------------------------------------------------------------------------
+      # DESTROY : Actions 탭에서 action=destroy 를 고른 경우에만 실행
+      # ----------------------------------------------------------------------------------------
+      - name: Terraform Destroy
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+        run: terraform destroy -input=false -no-color -lock-timeout=5m -auto-approve

@@ -1,0 +1,12 @@
+# 기본: 텍스트 파일 자동 판별
+* text=auto eol=lf
+
+# 리눅스에서 실행되는 파일은 반드시 LF 로 고정합니다.
+# (CRLF 로 저장되면 user-data 스크립트와 provisioner 가 \r 때문에 실패합니다)
+*.tf    text eol=lf
+*.tfvars text eol=lf
+*.hcl   text eol=lf
+*.sh    text eol=lf
+*.sql   text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf

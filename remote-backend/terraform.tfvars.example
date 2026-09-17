@@ -1,0 +1,4 @@
+# 이 파일을 terraform.tfvars 로 복사한 뒤 본인 값을 채우세요.
+#   cp terraform.tfvars.example terraform.tfvars
+bucket_name     = "<본인-상태저장-S3-버킷-이름>"
+lock_table_name = "<본인-상태잠금-DynamoDB-테이블-이름>"

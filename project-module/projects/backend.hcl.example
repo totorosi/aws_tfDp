@@ -1,0 +1,5 @@
+# 이 파일을 backend.hcl 로 복사한 뒤 본인 값을 채우세요. (backend.hcl 은 git에 올라가지 않습니다)
+#   cp backend.hcl.example backend.hcl
+#   terraform init -backend-config=backend.hcl
+bucket         = "<본인-상태저장-S3-버킷-이름>"
+dynamodb_table = "<본인-상태잠금-DynamoDB-테이블-이름>"

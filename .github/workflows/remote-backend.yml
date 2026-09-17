@@ -1,0 +1,97 @@
+# ##################################################################################################
+# remote-backend (상태 저장용 S3 버킷 + 상태 잠금용 DynamoDB 테이블) 관리 파이프라인
+# --------------------------------------------------------------------------------------------------
+# [주의] 이 디렉터리는 "자기가 쓸 backend 를 자기가 만드는" 부트스트랩 코드입니다.
+#        따라서 버킷이 아직 없는 최초 1회는 이 워크플로우가 아니라 로컬에서 아래 순서로 실행하세요.
+#
+#          cd remote-backend
+#          # providers.tf 의 backend "s3" 블록을 주석 처리
+#          terraform init && terraform apply
+#          # 주석 해제 후
+#          terraform init -migrate-state
+#
+#        버킷이 만들어진 뒤부터는 이 워크플로우로 관리하면 됩니다.
+# ##################################################################################################
+name: Terraform (remote-backend)
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: '실행할 terraform 명령 (destroy 는 버킷에 prevent_destroy 가 걸려 있어 막힙니다)'
+        required: true
+        type: choice
+        default: plan
+        options:
+          - plan
+          - apply
+
+env:
+  TF_VERSION: '1.15.8'
+  AWS_REGION: 'sa-east-1'
+  WORKDIR: 'remote-backend'
+  TF_IN_AUTOMATION: 'true'
+  # main.tf 의 bucket_name / lock_table_name 변수를 Secret 으로 주입합니다.
+  TF_VAR_bucket_name: ${{ secrets.TF_BACKEND_BUCKET }}
+  TF_VAR_lock_table_name: ${{ secrets.TF_BACKEND_DYNAMODB_TABLE }}
+
+concurrency:
+  group: terraform-remote-backend
+  cancel-in-progress: false
+
+jobs:
+  terraform:
+    name: ${{ github.event.inputs.action }}
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ${{ env.WORKDIR }}
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: AWS 자격 증명 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: 자격 증명 확인
+        run: aws sts get-caller-identity
+
+      - name: Terraform 설치
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: true
+
+      # backend 의 bucket / dynamodb_table 은 코드에 없으므로 Secret 으로 주입합니다.
+      - name: Terraform Init
+        run: |
+          terraform init -input=false -no-color             -backend-config="bucket=${{ secrets.TF_BACKEND_BUCKET }}"             -backend-config="dynamodb_table=${{ secrets.TF_BACKEND_DYNAMODB_TABLE }}"
+
+      - name: Terraform Validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -input=false -no-color -lock-timeout=5m -out=tfplan
+
+      - name: Plan 결과를 요약에 출력
+        # plan 출력에 백틱/$() 가 섞여 있어도 쉘이 해석하지 않도록 env 로 넘깁니다.
+        env:
+          PLAN_STDOUT: ${{ steps.plan.outputs.stdout }}
+        run: |
+          {
+            echo '### Terraform Plan (remote-backend)'
+            echo '```terraform'
+            echo "$PLAN_STDOUT" | head -c 900000
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Terraform Apply
+        if: github.event.inputs.action == 'apply'
+        run: terraform apply -input=false -no-color -lock-timeout=5m -auto-approve tfplan

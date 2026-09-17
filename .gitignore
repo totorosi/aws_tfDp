@@ -1,0 +1,40 @@
+# ----- Terraform -----
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# 비밀값이 들어가는 변수 파일 (terraform.tfvars 는 비밀이 없으므로 커밋합니다)
+*.auto.tfvars
+secret.tfvars
+
+# ----- 자격 증명 / 키 -----
+*.pem
+*.ppk
+.env
+
+# ----- macOS 압축 해제 부산물 -----
+__MACOSX/
+.DS_Store
+._*
+
+# ----- 에디터 -----
+.vscode/
+.idea/
+
+# 하위(child) 모듈의 락 파일은 커밋하지 않습니다.
+# .terraform.lock.hcl 은 루트 모듈(projects, remote-backend)에만 있어야 합니다.
+project-module/modules/*/.terraform.lock.hcl
+
+# ----- 계정 식별 정보가 담기는 파일 (반드시 로컬에만 보관) -----
+backend.hcl
+remote-backend/terraform.tfvars
