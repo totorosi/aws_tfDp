@@ -6,7 +6,7 @@ resource "aws_vpc" "this" {
   enable_dns_hostnames                 = var.vpc_options.enable_dns_hostnames
   assign_generated_ipv6_cidr_block     = var.vpc_options.assign_generated_ipv6_cidr_block
   enable_network_address_usage_metrics = var.vpc_options.enable_network_address_usage_metrics
-  tags = { Name = "${local.tag_header}vpc" }
+  tags                                 = { Name = "${local.tag_header}vpc" }
 }
 
 

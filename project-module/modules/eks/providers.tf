@@ -1,6 +1,22 @@
 # modules/eks/providers.tf (또는 자식 모듈 내 설정 파일)
 terraform {
   required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.0" # 버전은 부모와 모듈의 교집합에 맞춰집니다.
+    }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0" # data "tls_certificate" (OIDC 지문 추출)
+    }
+    http = {
+      source  = "hashicorp/http"
+      version = "~> 3.0" # data "http" (LB Controller IAM 정책 / CRD 다운로드)
+    }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.0" # null_resource (kubeconfig 갱신)
+    }
     kubectl = {
       source  = "gavinbunney/kubectl"
       version = ">= 1.14.0"

@@ -1,6 +1,6 @@
 resource "aws_network_acl" "this" {
   for_each = toset(local.subnet_type)
-  vpc_id = aws_vpc.this.id
+  vpc_id   = aws_vpc.this.id
 
   # 인바운드 규칙: 모든 IP에서 HTTP(80), HTTPS(443) 및 임시 포트 허용
   ingress {
@@ -29,7 +29,7 @@ resource "aws_network_acl" "this" {
 
 # 서브넷과 네트워크 ACL 명시적 연결
 resource "aws_network_acl_association" "nacl_assoc" {
-  for_each = local.subnet_map
+  for_each       = local.subnet_map
   subnet_id      = aws_subnet.this[each.key].id
   network_acl_id = aws_network_acl.this[each.value.type].id
 }

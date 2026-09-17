@@ -1,4 +1,4 @@
 locals {
-  tag_header          = var.tag_header
-  region              = var.region
+  tag_header = var.tag_header
+  region     = var.region
 }

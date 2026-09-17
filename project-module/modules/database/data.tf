@@ -5,7 +5,7 @@ data "aws_subnets" "db_subnets" {
     values = [local.vpc_id]
   }
   filter {
-    name    = "tag:Type"
-    values  = ["private"] 
+    name   = "tag:Type"
+    values = ["private"]
   }
 }

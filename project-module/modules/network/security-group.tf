@@ -1,27 +1,27 @@
 resource "aws_security_group" "external_alb_sg" {
-  name = "${local.tag_header}external-alb-sg"
-  vpc_id = aws_vpc.this.id
+  name        = "${local.tag_header}external-alb-sg"
+  vpc_id      = aws_vpc.this.id
   description = "Allow HTTP and HTTPS Traffic"
 
   ingress {
     from_port   = 80
     to_port     = 80
-    protocol    ="tcp"
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
     from_port   = 443
     to_port     = 443
-    protocol    ="tcp"
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
-    from_port   = 0     # 모든 포트
+    from_port   = 0 # 모든 포트
     to_port     = 0
-    protocol    = "-1"  # 모든 프로토콜
-    cidr_blocks  = ["0.0.0.0/0"]
+    protocol    = "-1" # 모든 프로토콜
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = { Name = "${local.tag_header}external-alb-sg" }
@@ -30,15 +30,15 @@ resource "aws_security_group" "external_alb_sg" {
 # ----------------------------------------------------------------
 # Security Group Chaining: ALB 보안 그룹에서 HTTP 트래픽을 허용하는 규칙을 추가하여 ALB가 HTTP 트래픽을 수신할 수 있도록 합니다.
 resource "aws_security_group" "internal_alb_sg" {
-  name = "${local.tag_header}internal-alb-sg"
-  vpc_id = aws_vpc.this.id
+  name        = "${local.tag_header}internal-alb-sg"
+  vpc_id      = aws_vpc.this.id
   description = "Allow HTTP Traffic"
 
   egress {
-    from_port   = 0     # 모든 포트
+    from_port   = 0 # 모든 포트
     to_port     = 0
-    protocol    = "-1"  # 모든 프로토콜
-    cidr_blocks  = ["0.0.0.0/0"]
+    protocol    = "-1" # 모든 프로토콜
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = { Name = "${local.tag_header}internal-alb-sg" }
@@ -49,10 +49,10 @@ resource "aws_security_group_rule" "allow_alt_to_http" {
   # 리스트를 맵으로 변환하여 반복문 돌림
   for_each = { for p in local.inbound_ports : "${p.from}-${p.to}" => p }
 
-  type        = "ingress"
-  protocol    = "tcp"
-  from_port   = each.value.from
-  to_port     = each.value.to
+  type      = "ingress"
+  protocol  = "tcp"
+  from_port = each.value.from
+  to_port   = each.value.to
 
   # 이 보안 규칙을 어디에 추가 할 것인가
   security_group_id = aws_security_group.internal_alb_sg.id
@@ -64,22 +64,22 @@ resource "aws_security_group_rule" "allow_alt_to_http" {
 # SSH
 # ================================================================================
 resource "aws_security_group" "ssh_sg" {
-  name = "${local.tag_header}ssh-sg"
-  vpc_id = aws_vpc.this.id
+  name        = "${local.tag_header}ssh-sg"
+  vpc_id      = aws_vpc.this.id
   description = "Allow SSH Traffic"
 
   ingress {
     from_port   = 22
     to_port     = 22
-    protocol    ="tcp"
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
-    from_port   = 0     # 모든 포트
+    from_port   = 0 # 모든 포트
     to_port     = 0
-    protocol    = "-1"  # 모든 프로토콜
-    cidr_blocks  = ["0.0.0.0/0"]
+    protocol    = "-1" # 모든 프로토콜
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = { Name = "${local.tag_header}ssh-sg" }
@@ -131,19 +131,19 @@ resource "aws_security_group" "eks_node_sg" {
   # 1. 노드 간 모든 통신 허용 (Self-reference)
   # 노드 그룹 내의 파드들이 서로 통신하기 위해 필수적입니다.
   ingress {
-    from_port       = 0
-    to_port         = 0
-    protocol        = "-1"
-    self            = true
-    description     = "Allow nodes to communicate with each other"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    self        = true
+    description = "Allow nodes to communicate with each other"
   }
 
   # 2. 컨트롤 플레인으로부터의 Kubelet 통신 허용
   ingress {
-    from_port       = 10250
-    to_port         = 10250
-    protocol        = "tcp"
-    description     = "Allow Kubelet API to communicate with control plane"
+    from_port   = 10250
+    to_port     = 10250
+    protocol    = "tcp"
+    description = "Allow Kubelet API to communicate with control plane"
     # 보안을 위해 클러스터 보안 그룹만 허용하도록 설정 가능
     # security_groups = [aws_eks_cluster.main.vpc_config[0].cluster_primary_security_group_id]
   }
@@ -172,7 +172,7 @@ resource "aws_security_group" "mysql_sg" {
     from_port   = 3306
     to_port     = 3306
     protocol    = "tcp"
-    cidr_blocks = [aws_vpc.this.cidr_block] 
+    cidr_blocks = [aws_vpc.this.cidr_block]
   }
 
   egress {

@@ -16,7 +16,7 @@ resource "aws_eip" "this" {
   count = local.create_nat_gateway ? 1 : 0
 
   domain = "vpc"
-  tags = { Name = "${local.tag_header}nat-eip" }
+  tags   = { Name = "${local.tag_header}nat-eip" }
 }
 
 # # NAT 게이트웨이 생성
@@ -28,9 +28,9 @@ resource "aws_nat_gateway" "this" {
 
   # keys() 함수로 이름 목록을 만든 뒤, 그중 첫 번째([0]) 이름의 ID를 가져옵니다.
   # 예: keys(aws_subnet.this) -> ["public1a", "public1b", "public1c"]
-  subnet_id = aws_subnet.this["public${split("-",local.azs[0])[2]}"].id
-  
+  subnet_id = aws_subnet.this["public${split("-", local.azs[0])[2]}"].id
+
   # IGW를 지정하여 최종적인 대문을 정의 해줍니다.
-  depends_on = [ aws_internet_gateway.this ]
-  tags = { Name = "${local.tag_header}nat" }
+  depends_on = [aws_internet_gateway.this]
+  tags       = { Name = "${local.tag_header}nat" }
 }

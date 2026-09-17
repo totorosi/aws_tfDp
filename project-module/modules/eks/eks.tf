@@ -146,7 +146,7 @@ resource "aws_eks_cluster" "k8s" {
 # --------------------------------------------------------------------------------
 # 1. EKS 클러스터의 OIDC 발급자 URL에서 'https://' 제거 (Thumbprint 추출을 위한 data 소스 또는 함수 활용)
 data "tls_certificate" "eks" {
-  url = aws_eks_cluster.k8s.identity[0].oidc[0].issuer
+  url        = aws_eks_cluster.k8s.identity[0].oidc[0].issuer
   depends_on = [aws_eks_cluster.k8s]
 }
 
@@ -294,7 +294,7 @@ resource "aws_iam_policy" "lb_controller" {
   policy      = data.http.iam_policy.response_body
 
   tags = {
-    Name  = "${local.tag_header}AWSLoadBalancerControllerIAMPolicy"
+    Name = "${local.tag_header}AWSLoadBalancerControllerIAMPolicy"
   }
 }
 
@@ -314,7 +314,7 @@ data "http" "alb_controller_crds" {
 
 # 3. kubectl_manifest 리소스를 통해 클러스터에 적용
 resource "kubectl_manifest" "crd" {
-  for_each  = data.http.alb_controller_crds.response_body != "" ?toset(split("---\n", data.http.alb_controller_crds.response_body)) : []
+  for_each  = data.http.alb_controller_crds.response_body != "" ? toset(split("---\n", data.http.alb_controller_crds.response_body)) : []
   yaml_body = each.value
 }
 
@@ -355,7 +355,7 @@ resource "aws_iam_role" "lb_controller" {
 
 # 2. 지정해주신 IAM 정책을 역할에 연결 (Attach)
 resource "aws_iam_role_policy_attachment" "lb_controller" {
-  role       = aws_iam_role.lb_controller.name
+  role = aws_iam_role.lb_controller.name
   # 이 모듈이 위에서 직접 생성한 정책을 참조합니다 (기존 하드코딩 ARN은 다른 계정/이름이라 실패)
   policy_arn = aws_iam_policy.lb_controller.arn
 }

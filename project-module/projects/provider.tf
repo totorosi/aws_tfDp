@@ -2,12 +2,16 @@
 # Terraform Block 
 # ================================================================================
 terraform {
+  # 이 코드를 실행할 수 있는 Terraform CLI 최소 버전.
+  # optional() 타입 지정, validation 블록 등을 쓰므로 1.5 이상이 필요합니다.
+  required_version = ">= 1.5.0"
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
       version = "~>6.0" # 6.0~<7.0
     }
-    
+
     kubectl = {
       source  = "gavinbunney/kubectl"
       version = ">= 1.14.0"
@@ -19,6 +23,26 @@ terraform {
     helm = {
       source  = "hashicorp/helm"
       version = ">= 2.0.0"
+    }
+
+    # 아래 4개는 코드에서 쓰고 있지만 선언이 빠져 있던 것들입니다.
+    # 선언하지 않아도 Terraform 이 리소스 이름 접두사를 보고 알아서 받아오지만,
+    # 그러면 버전을 고정할 수 없어 어느 날 갑자기 메이저 업그레이드가 될 수 있습니다.
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0" # eks 모듈: data "tls_certificate" (OIDC 지문 추출)
+    }
+    http = {
+      source  = "hashicorp/http"
+      version = "~> 3.0" # eks 모듈: data "http" (LB Controller IAM 정책/CRD 다운로드)
+    }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.0" # eks 모듈: null_resource (kubeconfig 갱신)
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0" # database 모듈: random_password (DB 비밀번호 생성)
     }
   }
   # ------------------------------------------------------------------------------------------------
