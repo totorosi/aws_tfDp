@@ -77,6 +77,19 @@ module "argocd" {
 }
 
 # --------------------------------------------------------------------------------
+# 범용 비공개 S3 스토리지. s3-website 가 퍼블릭 정적 사이트라면 이쪽은 그 반대입니다.
+# 퍼블릭 차단 + 버전 관리 + SSE + HTTPS 강제 정책이 들어갑니다.
+module "store" {
+  source = "../modules/store"
+
+  bucket_name = var.store_bucket_name
+  tag_header  = local.tag_header
+  region      = local.region
+
+  lifecycle_rules = var.store_lifecycle_rules
+}
+
+# --------------------------------------------------------------------------------
 module "static_web_site" {
   source = "../modules/s3-website"
 
@@ -85,17 +98,21 @@ module "static_web_site" {
 }
 
 # --------------------------------------------------------------------------------
-# [비활성화] RDS Multi-AZ DB 클러스터
-# sa-east-1 에서 쓸 수 있는 최소 사양이 db.m5d.large 이고 클러스터가 인스턴스를
-# 3대 띄우므로 실습 비용이 큽니다. DB 가 필요해지면 아래 주석을 해제하세요.
-# (output.tf 의 rds_* 출력값도 함께 주석 해제해야 합니다)
-# module "rds" {
-#   source      = "../modules/database"
-#   tag_header  = local.tag_header
-#   vpc_id      = local.vpc_id
-#   region      = local.region
-#   mysql_sg_id = local.mysql_sg_id
-# }
+# RDS Multi-AZ DB 클러스터 + RDS Proxy + Secrets Manager 자동 순환
+# [비용 주의] sa-east-1 에서 쓸 수 있는 최소 사양이 db.m5d.large 이고
+# Multi-AZ 클러스터는 인스턴스를 3대 띄웁니다. 실습이 끝나면 바로 정리하세요.
+# 쓰지 않을 때는 terraform.tfvars 에서 create_rds = false 로 두면 됩니다.
+module "rds" {
+  source = "../modules/database"
+  count  = var.create_rds ? 1 : 0
+
+  tag_header  = local.tag_header
+  vpc_id      = local.vpc_id
+  region      = local.region
+  mysql_sg_id = local.mysql_sg_id
+
+  db_cluster_instance_class = var.db_cluster_instance_class
+}
 
 # --------------------------------------------------------------------------------
 # 범용 EC2. instance_count 기본값이 0 이라 값을 주기 전까지 아무것도 만들지 않습니다.

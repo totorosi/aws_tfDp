@@ -12,3 +12,15 @@ variable "lock_table_name" {
   description = "상태 잠금(state lock)에 사용할 DynamoDB 테이블 이름"
   type        = string
 }
+
+variable "tag_header" {
+  description = "Resource Name or Tag:Name Header"
+  type        = string
+  default     = ""
+}
+
+variable "billing_mode" {
+  description = "DynamoDB 요금 방식 (PAY_PER_REQUEST 또는 PROVISIONED)"
+  type        = string
+  default     = "PAY_PER_REQUEST"
+}

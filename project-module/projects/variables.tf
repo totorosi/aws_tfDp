@@ -176,3 +176,46 @@ variable "ec2_associate_public_ip" {
   type        = bool
   default     = false
 }
+
+# ################################################################################
+# database (RDS)
+# ================================================================================
+variable "create_rds" {
+  description = <<-EOT
+    RDS Multi-AZ DB 클러스터 생성 여부.
+    [비용 주의] sa-east-1 최소 사양이 db.m5d.large 이고 인스턴스를 3대 띄웁니다.
+    필요할 때만 true 로 바꾸세요.
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "db_cluster_instance_class" {
+  description = "Multi-AZ DB 클러스터 인스턴스 클래스 (리전·엔진 버전별 지원 목록이 다름)"
+  type        = string
+  default     = "db.m5d.large"
+}
+
+# ################################################################################
+# store (범용 비공개 S3)
+# ================================================================================
+variable "store_bucket_name" {
+  description = "범용 스토리지 버킷 이름 (tag_header 뒤에 붙습니다)"
+  type        = string
+  default     = "store"
+}
+
+variable "store_lifecycle_rules" {
+  description = "객체 수명 주기 규칙. 비우면 규칙을 만들지 않습니다"
+  type = list(object({
+    id                                 = string
+    prefix                             = optional(string, "")
+    enabled                            = optional(bool, true)
+    transition_days                    = optional(number)
+    transition_storage_class           = optional(string, "STANDARD_IA")
+    expiration_days                    = optional(number)
+    noncurrent_version_expiration_days = optional(number)
+    abort_incomplete_multipart_days    = optional(number, 7)
+  }))
+  default = []
+}
