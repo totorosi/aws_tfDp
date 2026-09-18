@@ -137,6 +137,20 @@ Error: deleting EC2 Internet Gateway ... DependencyViolation:
 Ingress 에는 `ingress.k8s.aws/resources` finalizer 가 박혀 있어 컨트롤러 없이는
 지워지지 않고, 남은 ALB 의 공인 IP 가 IGW 분리를 막습니다.
 
+### 스크립트로 한 번에
+
+순서를 자동으로 지키는 스크립트가 있습니다. 아래 "올바른 순서"를 그대로 수행하고,
+마지막에 잔여물까지 점검합니다.
+
+```bash
+./scripts/teardown.sh          # 확인 후 진행
+./scripts/teardown.sh --yes    # 확인 없이 진행
+./scripts/teardown.sh --check  # 삭제하지 않고 잔여물만 점검
+```
+
+Ingress 삭제가 막히면(컨트롤러가 이미 없는 경우) 웹훅을 제거하고 finalizer 를
+직접 떼는 처리까지 들어 있습니다.
+
 ### 올바른 순서
 
 컨트롤러가 살아 있을 때 Ingress 를 먼저 지웁니다. 컨트롤러가 finalizer 를 처리하며
@@ -170,6 +184,7 @@ terraform destroy
 | `Ingress (...) still exists` | finalizer 를 떼줄 컨트롤러가 없음 |
 | `DependencyViolation` (IGW 분리 실패) | 고아 ALB 가 물고 있는 공인 IP |
 | `DependencyViolation` (VPC 삭제 실패) | 컨트롤러가 만든 `k8s-*` 보안 그룹 |
+| (에러 없음. 조용히 남음) | 컨트롤러가 만든 타겟 그룹 |
 
 `<리전>` 과 `<VPC_ID>` 는 본인 값으로 바꾸세요.
 
@@ -263,6 +278,11 @@ aws ec2 describe-addresses --region <리전>   --query 'Addresses[?AssociationId
 
 # 남아 있으면 (다른 실습에서 쓰지 않는지 확인 후)
 aws ec2 release-address --region <리전> --allocation-id <ID>
+
+# 타겟 그룹은 VPC 대시보드에 나오지 않습니다. EC2 콘솔 > 로드 밸런싱 > 대상 그룹
+# 에서 확인하거나 아래 명령으로 봅니다. 과금은 없지만 고아로 남습니다.
+aws elbv2 describe-target-groups --region <리전> --query 'TargetGroups[].[TargetGroupName,VpcId]' --output text
+aws elbv2 delete-target-group --region <리전> --target-group-arn <ARN>
 
 # external-dns 가 만든 Route53 레코드는 policy 가 upsert-only 라 남습니다.
 # 필요하면 콘솔에서 직접 지우세요. (A/AAAA 와 짝이 되는 TXT 레코드까지)
