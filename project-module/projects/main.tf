@@ -12,6 +12,7 @@ module "network" {
   vpc_options        = local.vpc_options
   ami_type           = var.ami_type
   ami_id             = local.ami_id
+  ssh_allowed_cidrs  = var.ssh_allowed_cidrs
 }
 
 # --------------------------------------------------------------------------------
@@ -95,6 +96,9 @@ module "rds" {
   vpc_id      = local.vpc_id
   region      = local.region
   mysql_sg_id = local.mysql_sg_id
+
+  # network 모듈 출력값 전달. data 소스로 조회하지 않습니다.
+  db_subnet_ids = local.private_subnet_ids
 
   db_cluster_instance_class = var.db_cluster_instance_class
 }

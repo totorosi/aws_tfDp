@@ -35,16 +35,24 @@ resource "aws_security_group" "external_alb_sg" {
 # ####################################################################################################
 # SSH
 # ====================================================================================================
+# [수정] 예전에는 22 번이 0.0.0.0/0 으로 전 세계에 열려 있었습니다.
+# 이제 ssh_allowed_cidrs 를 지정했을 때만, 그 대역에서만 열립니다.
+# 비워 두면(기본값) 규칙 자체가 만들어지지 않습니다.
+# ####################################################################################################
 resource "aws_security_group" "ssh_sg" {
   name        = "${local.tag_header}ssh-sg"
   vpc_id      = aws_vpc.this.id
-  description = "Allow SSH Traffic"
+  description = "Allow SSH from allowed CIDRs only"
 
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+  dynamic "ingress" {
+    for_each = length(var.ssh_allowed_cidrs) > 0 ? [1] : []
+    content {
+      description = "SSH from allowed CIDRs"
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = var.ssh_allowed_cidrs
+    }
   }
 
   egress {
@@ -65,23 +73,29 @@ resource "aws_security_group" "nat_sg" {
   description = "Security Group for NAT Instance"
   vpc_id      = aws_vpc.this.id
 
-  # 1. 관리자용 SSH 접속 (실무에서는 본인 공인 IP로 제한 권장)
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # 실무에선 본인 IP 권장
+  # 관리자용 SSH. 기본은 닫혀 있고 ssh_allowed_cidrs 를 지정할 때만 열립니다.
+  # NAT 기능 자체는 SSH 없이도 동작합니다.
+  dynamic "ingress" {
+    for_each = length(var.ssh_allowed_cidrs) > 0 ? [1] : []
+    content {
+      description = "SSH from allowed CIDRs"
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = var.ssh_allowed_cidrs
+    }
   }
 
-  # 2. VPC 내부에서 오는 모든 트래픽 (NAT 대상)
+  # VPC 내부에서 오는 모든 트래픽. 이게 NAT 의 본체입니다.
   ingress {
+    description = "Traffic from inside the VPC to be NATed"
     from_port   = 0
     to_port     = 0
     protocol    = -1
     cidr_blocks = [aws_vpc.this.cidr_block]
   }
 
-  # 3. 외부(인터넷)로 모든 패킷 내보내기 (필수)
+  # 외부(인터넷)로 모든 패킷 내보내기 (필수)
   egress {
     from_port   = 0
     to_port     = 0
@@ -103,6 +117,7 @@ resource "aws_security_group" "mysql_sg" {
   vpc_id      = aws_vpc.this.id
 
   ingress {
+    description = "MySQL from inside the VPC"
     from_port   = 3306
     to_port     = 3306
     protocol    = "tcp"

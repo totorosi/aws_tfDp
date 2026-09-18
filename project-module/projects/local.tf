@@ -77,6 +77,11 @@ locals {
     for k, v in module.network.network.subnets : v.id if v.tags["Type"] == "public"
   ]
 
+  # database 모듈에 넘길 private 서브넷 ID 목록
+  private_subnet_ids = [
+    for k, v in module.network.network.subnets : v.id if v.tags["Type"] == "private"
+  ]
+
   # compute 인스턴스에 붙일 보안 그룹 (SSH + 외부 HTTP/HTTPS)
   ec2_security_group_ids = [module.network.ssh_sg, module.network.external_alb_sg]
 

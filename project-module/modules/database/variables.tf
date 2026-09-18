@@ -40,3 +40,16 @@ variable "db_cluster_instance_class" {
   type        = string
   default     = "db.m5d.large"
 }
+
+variable "db_subnet_ids" {
+  description = <<-EOT
+    RDS · RDS Proxy · 순환 Lambda 를 배치할 서브넷 ID 목록 (private 서브넷).
+
+    [수정] 예전에는 이 모듈이 data "aws_subnets" 로 직접 조회했습니다.
+    eks / compute 모듈은 이미 root 에서 값으로 전달받는 방식으로 바꿨는데
+    database 만 옛 방식이라 일관성이 없었습니다.
+    값으로 받으면 network -> database 의존 관계가 그래프에 명시되어
+    Terraform 이 순서를 스스로 보장합니다.
+  EOT
+  type        = list(string)
+}

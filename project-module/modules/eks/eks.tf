@@ -7,14 +7,9 @@
 # 프라이빗 서브넷: "kubernetes.io/role/internal-elb" = "1"
 # ################################################################################
 
-
-
-
 # ################################################################################
 # 1. EKS 및 워커노드를 위한 보안 그룹 생성
 # ================================================================================
-# 노드와 컨트롤 플레인(k8s master)간 통신을 위한 포트: 10250/tcp
-# 노드간 통신 모두 열어줌
 resource "aws_security_group" "k8s_sg" {
   name        = "${local.tag_header}k8s-sg"
   description = "the cluster to allow internal communication"
@@ -28,13 +23,24 @@ resource "aws_security_group" "k8s_sg" {
     self        = true
   }
 
+  # --------------------------------------------------------------------------
+  # 컨트롤 플레인 -> kubelet (10250/tcp)
+  #
+  # [수정] 예전에는 cidr_blocks = ["0.0.0.0/0"] 이었습니다.
+  # kubelet 은 노드에서 파드를 실행/조회하는 창구라 인터넷 전체에 열어 둘 이유가
+  # 없습니다. 이 포트로 접근할 상대는 EKS 컨트롤 플레인 하나뿐이고,
+  # 컨트롤 플레인은 EKS 가 자동으로 만드는 클러스터 보안 그룹을 통해 들어옵니다.
+  # 그래서 cidr 대신 그 보안 그룹만 허용합니다.
+  #
+  # (노드는 private(cluster) 서브넷에 있어 인터넷에서 직접 닿지는 않았지만,
+  #  VPC 안의 다른 리소스에는 열려 있었습니다. 규칙 자체가 틀렸습니다)
+  # --------------------------------------------------------------------------
   ingress {
-    from_port   = 10250
-    to_port     = 10250
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    # cidr_blocks대신
-    # secrity_groups = [aws_eks_cluster.k8s.vpc_config[0].cluster_primary_security_group_id]
+    description     = "Allow control plane to reach kubelet"
+    from_port       = 10250
+    to_port         = 10250
+    protocol        = "tcp"
+    security_groups = [aws_eks_cluster.k8s.vpc_config[0].cluster_security_group_id]
   }
 
   egress {

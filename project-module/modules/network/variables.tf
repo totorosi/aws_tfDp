@@ -78,3 +78,13 @@ variable "key_pair" {
   type        = string
   default     = ""
 }
+
+variable "ssh_allowed_cidrs" {
+  description = <<-EOT
+    SSH(22) 를 허용할 CIDR 목록. 비우면 SSH 규칙을 아예 만들지 않습니다.
+    예전에는 0.0.0.0/0 으로 전 세계에 열려 있었습니다.
+    필요하면 본인 공인 IP 만 지정하세요. 예: ["203.0.113.4/32"]
+  EOT
+  type        = list(string)
+  default     = []
+}

@@ -80,7 +80,7 @@ resource "aws_serverlessapplicationrepository_cloudformation_stack" "mysql_rotat
     endpoint = "https://secretsmanager.${local.region}.amazonaws.com"
 
     # Lambda가 VPC 내부의 RDS에 접근할 수 있도록 배치할 Private Subnet ID 목록 (문자열을 쉼표로 연결)
-    vpcSubnetIds = local.db_subnets_ids
+    vpcSubnetIds = join(",", local.db_subnet_ids)
 
     # Lambda 함수에 적용할 보안 그룹(Security Group) ID
     vpcSecurityGroupIds = aws_security_group.lambda_sg.id
@@ -109,7 +109,7 @@ resource "aws_secretsmanager_secret_rotation" "mysql_secret_rotation" {
 # 3. Subnet Group 생성
 resource "aws_db_subnet_group" "subnet_group" {
   name       = "${local.tag_header}db-subnet-group"
-  subnet_ids = split(",", local.db_subnets_ids)
+  subnet_ids = local.db_subnet_ids
 
   tags = { Name = "${local.tag_header}-db-subnet-group" }
 }
@@ -203,7 +203,7 @@ resource "aws_db_proxy" "proxy" {
 
   # RDS Proxy의 ENI(네트워크 인터페이스)가 배치될 VPC 서브넷 ID 목록입니다. 
   # (콤마로 구분된 서브넷 ID 문자열을 split 함수로 분할하여 List(String) 형태로 변환)
-  vpc_subnet_ids = split(",", local.db_subnets_ids)
+  vpc_subnet_ids = local.db_subnet_ids
 
   # RDS Proxy 네트워크 인터페이스에 적용할 보안 그룹(Security Group) ID 목록입니다.
   vpc_security_group_ids = [local.mysql_sg_id]
