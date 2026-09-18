@@ -162,25 +162,98 @@ terraform destroy
 ### 이미 실패했다면
 
 컨트롤러가 먼저 지워진 뒤라면 수동으로 정리해야 합니다.
+아래 세 가지는 **모두 같은 원인(컨트롤러 부재)에서 나오는 증상**이며, destroy 를
+재실행할 때마다 순서대로 하나씩 드러납니다.
+
+| 에러 | 막고 있는 것 |
+|---|---|
+| `Ingress (...) still exists` | finalizer 를 떼줄 컨트롤러가 없음 |
+| `DependencyViolation` (IGW 분리 실패) | 고아 ALB 가 물고 있는 공인 IP |
+| `DependencyViolation` (VPC 삭제 실패) | 컨트롤러가 만든 `k8s-*` 보안 그룹 |
+
+`<리전>` 과 `<VPC_ID>` 는 본인 값으로 바꾸세요.
+
+**1단계 — 웹훅 제거**
+
+컨트롤러 파드는 없는데 웹훅 등록만 남아 있으면 모든 Ingress 작업이
+`no endpoints available` 로 거부됩니다. finalizer 를 떼려는 patch 조차 막히므로
+이것부터 지워야 합니다.
 
 ```bash
-# 1. LB Controller 웹훅 제거
-#    파드는 없는데 웹훅 등록만 남아 모든 Ingress 작업이
-#    "no endpoints available" 로 거부됩니다. finalizer 를 떼는 patch 조차 막힙니다.
 kubectl delete validatingwebhookconfiguration aws-load-balancer-webhook --ignore-not-found
 kubectl delete mutatingwebhookconfiguration   aws-load-balancer-webhook --ignore-not-found
-
-# 2. finalizer 제거 후 Ingress 삭제
-kubectl -n argocd patch ingress argocd-server -p '{"metadata":{"finalizers":null}}' --type=merge
-kubectl -n web    patch ingress nginx         -p '{"metadata":{"finalizers":null}}' --type=merge
-
-# 3. 고아 ALB 수동 삭제
-aws elbv2 describe-load-balancers --region <리전>   --query "LoadBalancers[?VpcId=='<VPC_ID>'].LoadBalancerArn" --output text |
-  xargs -n1 aws elbv2 delete-load-balancer --region <리전> --load-balancer-arn
-
-# 4. ELB ENI 가 0 이 될 때까지 대기 후 destroy 재실행
-aws ec2 describe-network-interfaces --region <리전>   --filters "Name=vpc-id,Values=<VPC_ID>" "Name=description,Values=ELB*"   --query 'length(NetworkInterfaces)' --output text
 ```
+
+**2단계 — finalizer 제거 후 Ingress 삭제**
+
+```bash
+kubectl get ingress -A     # 대상 확인
+kubectl -n <네임스페이스> patch ingress <이름> -p '{"metadata":{"finalizers":null}}' --type=merge
+kubectl delete ingress --all -A
+```
+
+**3단계 — 고아 ALB 삭제**
+
+```bash
+aws elbv2 describe-load-balancers --region <리전> --query "LoadBalancers[?VpcId=='<VPC_ID>'].LoadBalancerArn" --output text | xargs -n1 -I{} aws elbv2 delete-load-balancer --region <리전> --load-balancer-arn {}
+
+# ELB ENI 가 0 이 될 때까지 기다린 뒤 다음 단계로 (2~3분)
+aws ec2 describe-network-interfaces --region <리전> --filters "Name=vpc-id,Values=<VPC_ID>" "Name=description,Values=ELB*" --query 'length(NetworkInterfaces)' --output text
+```
+
+**4단계 — 고아 보안 그룹 삭제**
+
+컨트롤러는 ALB 마다 `k8s-` 로 시작하는 보안 그룹을 만듭니다. Terraform 이 만든 게
+아니므로 Terraform 은 존재조차 모르고, 이게 남아 있으면 VPC 가 삭제되지 않습니다.
+서로 참조하고 있어 규칙부터 비워야 지워집니다.
+
+```bash
+SGS=$(aws ec2 describe-security-groups --region <리전> --filters "Name=vpc-id,Values=<VPC_ID>" --query "SecurityGroups[?GroupName!='default'].GroupId" --output text)
+
+for SG in $SGS; do
+  ING=$(aws ec2 describe-security-groups --region <리전> --group-ids "$SG" --query 'SecurityGroups[0].IpPermissions' --output json)
+  EGR=$(aws ec2 describe-security-groups --region <리전> --group-ids "$SG" --query 'SecurityGroups[0].IpPermissionsEgress' --output json)
+  [ "$ING" != "[]" ] && aws ec2 revoke-security-group-ingress --region <리전> --group-id "$SG" --ip-permissions "$ING"
+  [ "$EGR" != "[]" ] && aws ec2 revoke-security-group-egress  --region <리전> --group-id "$SG" --ip-permissions "$EGR"
+done
+
+for SG in $SGS; do aws ec2 delete-security-group --region <리전> --group-id "$SG"; done
+```
+
+**5단계 — VPC 의존성 확인 후 destroy 재실행**
+
+아래가 전부 0 이면 VPC 가 지워집니다.
+
+```bash
+aws ec2 describe-network-interfaces --region <리전> --filters "Name=vpc-id,Values=<VPC_ID>" --query 'length(NetworkInterfaces)' --output text
+aws ec2 describe-subnets            --region <리전> --filters "Name=vpc-id,Values=<VPC_ID>" --query 'length(Subnets)' --output text
+aws ec2 describe-security-groups    --region <리전> --filters "Name=vpc-id,Values=<VPC_ID>" --query "length(SecurityGroups[?GroupName!='default'])" --output text
+
+cd project-module/projects && terraform destroy
+```
+
+### state 에만 남은 유령 리소스
+
+이미 삭제된 리소스가 state 에만 남으면 destroy 가 계속 실패합니다.
+
+```
+Error: uninstall: Release not loaded: aws-load-balancer-controller
+```
+
+실제로 없는지 먼저 확인하고, 없다면 state 에서 제거합니다.
+(state 에서 빼는 것이므로 실제 리소스에는 영향이 없습니다)
+
+```bash
+helm list -A                    # 실제 릴리스 목록
+terraform state list | grep helm  # state 가 알고 있는 것
+
+# 실제로 없는데 state 에만 있다면
+terraform state rm module.eks.helm_release.aws_load_balancer_controller
+```
+
+`connection reset by peer` 나 `Please retry` 가 섞여 있으면 일시적 네트워크 오류일
+수 있습니다. 클러스터가 살아 있는지(`kubectl get ns`) 먼저 확인하고,
+살아 있으면 그냥 재시도하세요. state rm 은 실제로 없을 때만 씁니다.
 
 ### destroy 후 확인
 
