@@ -29,13 +29,13 @@ resource "aws_subnet" "this" { # 변수나 로컬 변수에 위 map 구조가 �
     # 1. Public 서브넷용 태그: External ELB용
     each.value.type == "public" ? {
       "kubernetes.io/role/elb"                               = "1"
-      "kubernetes.io/cluster/${local.tag_header}eks-cluster" = "share"
+      "kubernetes.io/cluster/${local.tag_header}eks-cluster" = "shared"
     } : {},
 
     # 2. Cluster(Private) 서브넷용 태그: Internal ELB용
     each.value.type == "cluster" ? {
       "kubernetes.io/role/internal-elb"                      = "1"
-      "kubernetes.io/cluster/${local.tag_header}eks-cluster" = "share"
+      "kubernetes.io/cluster/${local.tag_header}eks-cluster" = "shared"
     } : {}
   )
 }

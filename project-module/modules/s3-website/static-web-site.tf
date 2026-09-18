@@ -2,6 +2,11 @@ resource "aws_s3_bucket" "s3_website_bucket" {
   # 주의: 버킷 이름은 전 세계 AWS 사용자 중 유일해야 합니다!
   bucket = "${local.tag_header}s3-website-bucket"
 
+  # true 면 객체가 남아 있어도 terraform destroy 로 버킷이 삭제됩니다.
+  # 이게 없으면 index.html 을 한 번이라도 올리는 순간 destroy 가
+  # BucketNotEmpty 로 실패합니다. (store 모듈도 같은 설정을 씁니다)
+  force_destroy = var.force_destroy
+
   tags = {
     Name = "${local.tag_header}s3-website-bucket"
   }

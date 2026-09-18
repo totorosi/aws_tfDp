@@ -18,6 +18,23 @@ resource "kubectl_manifest" "application" {
       name = var.app_name
       # Application 은 반드시 ArgoCD 가 설치된 네임스페이스에 있어야 인식됩니다.
       namespace = local.namespace
+
+      # ------------------------------------------------------------------------
+      # [destroy 핵심] 이 finalizer 가 "한 번에 삭제"를 가능하게 합니다.
+      #
+      # 이게 없으면 Application 만 사라지고 그 앱이 만든 리소스
+      # (Deployment / Service / Ingress / Namespace)는 클러스터에 그대로 남습니다.
+      # 특히 Ingress 가 남으면 ALB 도 남고, ALB 가 남으면 IGW 분리와 VPC 삭제가 막힙니다.
+      #
+      # finalizer 가 있으면 Application 을 지울 때 ArgoCD 가 자기가 배포한 리소스를
+      # 역순으로 전부 회수한 뒤에야 Application 이 사라집니다.
+      # Ingress 가 지워지면 LB Controller 가 ALB 와 타겟그룹까지 스스로 정리합니다.
+      #
+      # 이게 안전하게 동작하려면 Application 이 지워지는 시점에
+      # ArgoCD 와 LB Controller 가 모두 살아 있어야 합니다. 그 순서는
+      # root 의 depends_on = [module.eks] 와 아래 depends_on 이 함께 보장합니다.
+      # ------------------------------------------------------------------------
+      finalizers = ["resources-finalizer.argocd.argoproj.io"]
     }
     spec = {
       project = "default"

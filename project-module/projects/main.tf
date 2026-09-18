@@ -30,54 +30,39 @@ module "eks" {
 }
 
 # --------------------------------------------------------------------------------
+# ArgoCD + Ingress (GitOps 배포 진입점)
 # --------------------------------------------------------------------------------
-# --------------------------------------------------------------------------------
-module "external_dns" {
-  source = "../modules/external-dns"
-
-  # 클러스터 접속 정보 (eks 모듈 출력값)
-  cluster_name           = module.eks.cluster_name
-  cluster_endpoint       = module.eks.cluster_endpoint
-  cluster_ca_certificate = module.eks.cluster_certificate_authority_data
-  oidc_provider_arn      = module.eks.oidc_provider_arn
-
-  tag_header = local.tag_header
-
-  # 관리할 도메인. 비워두면 모듈이 아무 레코드도 만들지 않습니다.
-  domain_filters = var.external_dns_domains
-
-  # upsert-only: 레코드를 만들고 고치기만 하고 지우지는 않습니다.
-  policy = var.external_dns_policy
-}
-
-# --------------------------------------------------------------------------------
+# [핵심] depends_on = [module.eks] 가 "한 번에 삭제"의 뼈대입니다.
+#
+# Terraform 은 의존 관계의 "역순"으로 파괴합니다. 이 한 줄로 argocd 모듈의 모든
+# 리소스가 eks 모듈의 모든 리소스보다 먼저 파괴되는 것이 보장됩니다.
+#
+#   파괴 순서
+#     Application(finalizer -> ArgoCD 가 nginx 리소스 회수)
+#       -> ArgoCD Ingress -> ArgoCD Helm
+#       -> [eks] ingress_cleanup -> LB Controller -> CRD/SA -> 노드그룹 -> 클러스터
+#
+# 이 순서 덕분에 Ingress 가 지워지는 모든 시점에 LB Controller 와 노드가 살아 있어,
+# 컨트롤러가 ALB·타겟그룹·보안그룹을 스스로 회수합니다.
+#
+# 예전에는 argocd 모듈이 자체 provider 블록을 갖고 있어 이 depends_on 을 쓸 수
+# 없었습니다. provider 설정을 provider.tf(루트)로 옮겨서 풀었습니다.
 module "argocd" {
   source = "../modules/argocd"
 
-  # 클러스터 접속 정보 (eks 모듈 출력값)
-  cluster_name           = module.eks.cluster_name
-  cluster_endpoint       = module.eks.cluster_endpoint
-  cluster_ca_certificate = module.eks.cluster_certificate_authority_data
+  depends_on = [module.eks]
 
   tag_header = local.tag_header
-
-  # 값은 쓰지 않고 의존 관계만 만듭니다.
-  # destroy 시 Ingress 가 LB Controller 보다 먼저 파괴되게 하는 장치입니다.
-  lb_controller_release_id = module.eks.lb_controller_release_id
 
   # ArgoCD 가 바라볼 Git 저장소. k8s/app 의 매니페스트를 클러스터에 맞춥니다.
   git_repo_url        = var.argocd_repo_url
   git_target_revision = var.argocd_target_revision
   git_path            = var.argocd_path
 
-  # UI 접속용 ALB. 인증서를 지정하면 HTTPS 도 함께 엽니다.
+  # UI 접속용 ALB. 도메인을 쓰지 않으므로 ALB 기본 주소로 접속합니다.
+  # 인증서 ARN 을 지정하면 HTTPS 도 함께 엽니다. (기본값은 HTTP 만)
   create_ingress  = var.argocd_create_ingress
   certificate_arn = var.argocd_certificate_arn
-
-  # 도메인을 지정하면 HTTPS 리스너가 열리고(와일드카드 인증서 자동 탐색),
-  # 호스팅 영역까지 주면 Route53 레코드도 함께 만듭니다.
-  ingress_host      = var.argocd_ingress_host
-  route53_zone_name = var.argocd_route53_zone_name
 }
 
 # --------------------------------------------------------------------------------

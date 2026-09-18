@@ -14,17 +14,44 @@ project-module/
   modules/
     network              VPC · 서브넷 · 라우팅 · NACL · 보안그룹 · NAT
     eks                  EKS 클러스터 · 노드그룹 · IRSA · LB Controller
+    argocd               ArgoCD · UI Ingress · Application (GitOps 진입점)
     database             RDS MySQL 클러스터 · RDS Proxy · Secrets Manager
     s3-website           퍼블릭 정적 웹사이트 버킷
-    remote               원격 상태 저장소(S3 + DynamoDB) 모듈
-    store                범용 비공개 S3 스토리지 모듈
-    compute              (미사용) EC2 모듈 초안
+    store                범용 비공개 S3 스토리지
+    compute              범용 EC2 (기본 0대)
+    remote               원격 상태 저장소(S3 + DynamoDB)
+k8s/app/                 ArgoCD 가 동기화하는 애플리케이션 매니페스트
 remote-backend/          상태 저장소를 직접 만드는 부트스트랩 코드
+scripts/                 destroy 후 잔여물 점검 스크립트
 .github/workflows/       terraform.yml (메인) · remote-backend.yml
 ```
 
 리소스 정의는 전부 `modules/` 안에 있습니다.
 `projects/main.tf` 는 모듈을 호출만 하므로 `resource` 블록이 없습니다.
+
+## 배포 방식
+
+Terraform 이 인프라를, ArgoCD 가 애플리케이션을 담당합니다.
+
+```
+terraform apply      VPC · EKS · LB Controller · ArgoCD 설치
+     |
+git push             k8s/app/ 수정 후 push
+     |
+ArgoCD sync          Git 을 보고 클러스터를 그 상태로 맞춤
+     |
+LB Controller        Ingress 를 보고 ALB 생성
+```
+
+애플리케이션을 바꿀 때 `terraform apply` 를 다시 돌릴 필요가 없습니다.
+`k8s/app/` 을 고쳐서 push 하면 ArgoCD 가 반영합니다.
+
+**도메인(Route53)은 쓰지 않습니다.** ALB 기본 주소로 접속합니다.
+
+```bash
+terraform output argocd_url                  # ArgoCD UI
+kubectl -n web get ingress nginx             # 애플리케이션 ALB 주소
+```
 
 ## 준비
 
@@ -76,8 +103,8 @@ cp secret.auto.tfvars.example secret.auto.tfvars  # owner · key_pair
 cd project-module/projects
 
 terraform init -backend-config=backend.hcl   # backend.hcl 지정 필수
-terraform plan
-terraform apply
+terraform apply       # 생성. 이것 하나면 끝입니다
+terraform destroy     # 삭제. 이것 하나면 끝입니다
 ```
 
 `backend` 블록은 변수를 쓸 수 없어 값을 비워둔 "부분 구성" 상태입니다.
@@ -86,12 +113,17 @@ terraform apply
 apply 후 주요 정보는 출력값으로 확인합니다.
 
 ```bash
-terraform output                      # 전체
+terraform output                                 # 전체
+terraform output argocd_url                      # ArgoCD UI 주소
+terraform output argocd_initial_password_command # admin 비밀번호 조회 명령
 terraform output eks_kubeconfig_command
-terraform output rds_get_password_command
 ```
 
-DB 비밀번호는 출력하지 않고 조회용 명령만 노출합니다.
+DB 비밀번호와 ArgoCD 비밀번호는 출력하지 않고 조회용 명령만 노출합니다.
+
+로컬에서 apply/destroy 하려면 실행 머신에 `aws` 와 `kubectl` 이 있어야 합니다.
+`modules/eks/cleanup.tf` 의 안전망이 이 둘을 씁니다.
+(GitHub Actions `ubuntu-latest` 러너에는 기본 포함)
 
 ## GitHub Actions
 
@@ -119,174 +151,59 @@ Settings → Secrets and variables → Actions
 임시 자격 증명(`ASIA...` 로 시작)을 쓰는 경우에만 `AWS_SESSION_TOKEN` 이
 추가로 필요합니다. 장기 키(`AKIA...`)는 필요 없습니다.
 
-## 정리 (destroy)
+## destroy 가 한 번에 끝나는 이유
 
-**`terraform destroy` 를 바로 실행하면 실패합니다.** 순서 문제가 있습니다.
+이 부분이 이 저장소에서 가장 신경 쓴 곳입니다.
 
-ALB 는 Terraform 이 만들지 않습니다. Ingress 를 보고 AWS Load Balancer Controller 가
-만듭니다. 그런데 destroy 는 그 컨트롤러를 먼저 지우고, 그러면 ALB 를 삭제할 주체가
-사라져 아래 세 에러가 연쇄적으로 납니다.
+### 문제
+
+만드는 주체가 셋인데 지우는 주체는 Terraform 하나뿐입니다.
+
+| 주체 | 만드는 것 | Terraform state |
+|---|---|---|
+| Terraform | VPC · EKS · IAM · Helm 릴리스 · ArgoCD Ingress | 있음 |
+| LB Controller | ALB · 타겟그룹 · 보안그룹(`k8s-*`) · ENI | **없음** |
+| ArgoCD | nginx Deployment · Service · Ingress · Namespace | **없음** |
+
+`terraform destroy` 는 state 에 있는 것만 지웁니다. 그런데 destroy 가
+LB Controller 를 먼저 죽이면, 컨트롤러가 만든 ALB 는 지울 주체가 사라져
+고아가 되고 IGW 분리와 VPC 삭제를 막습니다.
+
+### 해결 — 파괴 순서를 그래프에 넣음
+
+Terraform 은 의존 관계의 **역순**으로 파괴합니다. 그 성질을 이용해
+아래 순서를 코드로 고정했습니다.
 
 ```
-Error: Ingress (argocd/argocd-server) still exists
-Error: failed to delete release: aws-load-balancer-controller
-Error: deleting EC2 Internet Gateway ... DependencyViolation:
-       Network vpc-xxx has some mapped public address(es).
+Application(finalizer) → ArgoCD Ingress → ArgoCD Helm
+  → ingress_cleanup → LB Controller → CRD/ServiceAccount
+  → 노드그룹 → 클러스터 → VPC
 ```
 
-Ingress 에는 `ingress.k8s.aws/resources` finalizer 가 박혀 있어 컨트롤러 없이는
-지워지지 않고, 남은 ALB 의 공인 IP 가 IGW 분리를 막습니다.
+| 어디 | 무엇 | 왜 |
+|---|---|---|
+| `projects/main.tf` | `module "argocd"` 의 `depends_on = [module.eks]` | ArgoCD 관련 전부가 EKS 전부보다 먼저 파괴 |
+| `modules/argocd/application.tf` | Application 에 ArgoCD finalizer | ArgoCD 가 자기가 배포한 nginx 리소스까지 스스로 회수 |
+| `modules/eks/eks.tf` | `helm_release` 의 `depends_on` (노드그룹·CRD·SA) | 컨트롤러가 파드 살아 있을 때 uninstall |
+| `modules/eks/cleanup.tf` | destroy 프로비저너 | 그래도 남는 Ingress·타겟그룹에 대한 안전망 |
 
-### 스크립트로 한 번에
+**노드그룹 의존이 왜 필요한가** — LB Controller 차트는 자기를 지키는 웹훅을
+함께 설치합니다. 노드가 먼저 사라지면 컨트롤러 파드가 죽고, 이어지는
+`helm uninstall` 이 자기 Service 를 지울 때 응답 없는 웹훅을 호출하다 실패합니다.
+릴리스가 `uninstalling` 상태로 갇히고 `failed to delete release` 로 멈춥니다.
 
-순서를 자동으로 지키는 스크립트가 있습니다. 아래 "올바른 순서"를 그대로 수행하고,
-마지막에 잔여물까지 점검합니다.
+**provider 를 루트로 올린 이유** — Terraform 은 자체 `provider` 블록을 가진
+모듈에 `depends_on` 을 금지합니다. argocd 모듈이 provider 를 갖고 있던 동안에는
+위의 `depends_on` 을 쓸 수 없었습니다. 설정을 `projects/provider.tf` 로 옮겨
+해결했습니다. (`modules/eks` 는 자기가 클러스터를 만드는 모듈이라 예외)
+
+### 확인
 
 ```bash
-./scripts/teardown.sh          # 확인 후 진행
-./scripts/teardown.sh --yes    # 확인 없이 진행
-./scripts/teardown.sh --check  # 삭제하지 않고 잔여물만 점검
+./scripts/check-leftovers.sh
 ```
 
-Ingress 삭제가 막히면(컨트롤러가 이미 없는 경우) 웹훅을 제거하고 finalizer 를
-직접 떼는 처리까지 들어 있습니다.
-
-### 올바른 순서
-
-컨트롤러가 살아 있을 때 Ingress 를 먼저 지웁니다. 컨트롤러가 finalizer 를 처리하며
-ALB 까지 정리해 줍니다.
-
-```bash
-# 1. ArgoCD 가 Ingress 를 되살리지 못하도록 Application 부터 제거
-kubectl -n argocd delete application --all
-
-# 2. Ingress 전부 삭제 (컨트롤러가 ALB 까지 정리)
-kubectl delete ingress --all -A
-
-# 3. ALB 가 실제로 사라졌는지 확인 (0 이 될 때까지 2~3분)
-aws elbv2 describe-load-balancers --region <리전>   --query 'length(LoadBalancers)' --output text
-
-# 4. 그 다음 destroy
-cd project-module/projects
-terraform destroy
-```
-
-1번을 건너뛰면 `syncPolicy.automated` 때문에 ArgoCD 가 Ingress 를 즉시 되살립니다.
-
-### 이미 실패했다면
-
-컨트롤러가 먼저 지워진 뒤라면 수동으로 정리해야 합니다.
-아래 세 가지는 **모두 같은 원인(컨트롤러 부재)에서 나오는 증상**이며, destroy 를
-재실행할 때마다 순서대로 하나씩 드러납니다.
-
-| 에러 | 막고 있는 것 |
-|---|---|
-| `Ingress (...) still exists` | finalizer 를 떼줄 컨트롤러가 없음 |
-| `DependencyViolation` (IGW 분리 실패) | 고아 ALB 가 물고 있는 공인 IP |
-| `DependencyViolation` (VPC 삭제 실패) | 컨트롤러가 만든 `k8s-*` 보안 그룹 |
-| (에러 없음. 조용히 남음) | 컨트롤러가 만든 타겟 그룹 |
-
-`<리전>` 과 `<VPC_ID>` 는 본인 값으로 바꾸세요.
-
-**1단계 — 웹훅 제거**
-
-컨트롤러 파드는 없는데 웹훅 등록만 남아 있으면 모든 Ingress 작업이
-`no endpoints available` 로 거부됩니다. finalizer 를 떼려는 patch 조차 막히므로
-이것부터 지워야 합니다.
-
-```bash
-kubectl delete validatingwebhookconfiguration aws-load-balancer-webhook --ignore-not-found
-kubectl delete mutatingwebhookconfiguration   aws-load-balancer-webhook --ignore-not-found
-```
-
-**2단계 — finalizer 제거 후 Ingress 삭제**
-
-```bash
-kubectl get ingress -A     # 대상 확인
-kubectl -n <네임스페이스> patch ingress <이름> -p '{"metadata":{"finalizers":null}}' --type=merge
-kubectl delete ingress --all -A
-```
-
-**3단계 — 고아 ALB 삭제**
-
-```bash
-aws elbv2 describe-load-balancers --region <리전> --query "LoadBalancers[?VpcId=='<VPC_ID>'].LoadBalancerArn" --output text | xargs -n1 -I{} aws elbv2 delete-load-balancer --region <리전> --load-balancer-arn {}
-
-# ELB ENI 가 0 이 될 때까지 기다린 뒤 다음 단계로 (2~3분)
-aws ec2 describe-network-interfaces --region <리전> --filters "Name=vpc-id,Values=<VPC_ID>" "Name=description,Values=ELB*" --query 'length(NetworkInterfaces)' --output text
-```
-
-**4단계 — 고아 보안 그룹 삭제**
-
-컨트롤러는 ALB 마다 `k8s-` 로 시작하는 보안 그룹을 만듭니다. Terraform 이 만든 게
-아니므로 Terraform 은 존재조차 모르고, 이게 남아 있으면 VPC 가 삭제되지 않습니다.
-서로 참조하고 있어 규칙부터 비워야 지워집니다.
-
-```bash
-SGS=$(aws ec2 describe-security-groups --region <리전> --filters "Name=vpc-id,Values=<VPC_ID>" --query "SecurityGroups[?GroupName!='default'].GroupId" --output text)
-
-for SG in $SGS; do
-  ING=$(aws ec2 describe-security-groups --region <리전> --group-ids "$SG" --query 'SecurityGroups[0].IpPermissions' --output json)
-  EGR=$(aws ec2 describe-security-groups --region <리전> --group-ids "$SG" --query 'SecurityGroups[0].IpPermissionsEgress' --output json)
-  [ "$ING" != "[]" ] && aws ec2 revoke-security-group-ingress --region <리전> --group-id "$SG" --ip-permissions "$ING"
-  [ "$EGR" != "[]" ] && aws ec2 revoke-security-group-egress  --region <리전> --group-id "$SG" --ip-permissions "$EGR"
-done
-
-for SG in $SGS; do aws ec2 delete-security-group --region <리전> --group-id "$SG"; done
-```
-
-**5단계 — VPC 의존성 확인 후 destroy 재실행**
-
-아래가 전부 0 이면 VPC 가 지워집니다.
-
-```bash
-aws ec2 describe-network-interfaces --region <리전> --filters "Name=vpc-id,Values=<VPC_ID>" --query 'length(NetworkInterfaces)' --output text
-aws ec2 describe-subnets            --region <리전> --filters "Name=vpc-id,Values=<VPC_ID>" --query 'length(Subnets)' --output text
-aws ec2 describe-security-groups    --region <리전> --filters "Name=vpc-id,Values=<VPC_ID>" --query "length(SecurityGroups[?GroupName!='default'])" --output text
-
-cd project-module/projects && terraform destroy
-```
-
-### state 에만 남은 유령 리소스
-
-이미 삭제된 리소스가 state 에만 남으면 destroy 가 계속 실패합니다.
-
-```
-Error: uninstall: Release not loaded: aws-load-balancer-controller
-```
-
-실제로 없는지 먼저 확인하고, 없다면 state 에서 제거합니다.
-(state 에서 빼는 것이므로 실제 리소스에는 영향이 없습니다)
-
-```bash
-helm list -A                    # 실제 릴리스 목록
-terraform state list | grep helm  # state 가 알고 있는 것
-
-# 실제로 없는데 state 에만 있다면
-terraform state rm module.eks.helm_release.aws_load_balancer_controller
-```
-
-`connection reset by peer` 나 `Please retry` 가 섞여 있으면 일시적 네트워크 오류일
-수 있습니다. 클러스터가 살아 있는지(`kubectl get ns`) 먼저 확인하고,
-살아 있으면 그냥 재시도하세요. state rm 은 실제로 없을 때만 씁니다.
-
-### destroy 후 확인
-
-```bash
-# 연결되지 않은 Elastic IP 는 시간당 과금됩니다
-aws ec2 describe-addresses --region <리전>   --query 'Addresses[?AssociationId==null].[PublicIp,AllocationId]' --output text
-
-# 남아 있으면 (다른 실습에서 쓰지 않는지 확인 후)
-aws ec2 release-address --region <리전> --allocation-id <ID>
-
-# 타겟 그룹은 VPC 대시보드에 나오지 않습니다. EC2 콘솔 > 로드 밸런싱 > 대상 그룹
-# 에서 확인하거나 아래 명령으로 봅니다. 과금은 없지만 고아로 남습니다.
-aws elbv2 describe-target-groups --region <리전> --query 'TargetGroups[].[TargetGroupName,VpcId]' --output text
-aws elbv2 delete-target-group --region <리전> --target-group-arn <ARN>
-
-# external-dns 가 만든 Route53 레코드는 policy 가 upsert-only 라 남습니다.
-# 필요하면 콘솔에서 직접 지우세요. (A/AAAA 와 짝이 되는 TXT 레코드까지)
-```
+아무것도 지우지 않고 잔여물만 셉니다. 전부 0 이면 정상입니다.
 
 ## 알아둘 점
 
@@ -297,28 +214,20 @@ aws elbv2 delete-target-group --region <리전> --target-group-arn <ARN>
 terraform providers lock -platform=<플랫폼>
 ```
 
-**모듈 안의 provider 선언** — `modules/eks` 가 kubernetes·helm 프로바이더를
-직접 선언합니다. 이 때문에 해당 모듈에는 `depends_on` 을 쓸 수 없어,
-VPC·서브넷을 변수로 전달해 의존 관계를 만듭니다.
-
 **ALB 의 소유자는 Terraform 이 아닙니다.** Ingress 를 보고 AWS Load Balancer
-Controller 가 만듭니다. 그래서 Terraform 은 ALB 의 존재를 모르고, destroy 순서를
-스스로 잡지 못합니다. 위 "정리 (destroy)" 절차를 반드시 따르세요.
+Controller 가 만듭니다. `aws_lb` 리소스는 코드 어디에도 없습니다.
 
-**ArgoCD 는 지운 리소스를 되살립니다.** Application 의 `syncPolicy.automated.selfHeal`
-이 켜져 있어, kubectl 로 Ingress 를 지워도 즉시 다시 만듭니다. 정리할 때는 Application
-부터 지워야 합니다.
+**ArgoCD 는 지운 리소스를 되살립니다.** `syncPolicy.automated.selfHeal` 이
+켜져 있어, kubectl 로 Ingress 를 지워도 Git 상태로 즉시 되돌립니다.
+손으로 정리할 일이 있으면 Application 부터 지워야 합니다.
+(destroy 에서는 위 순서가 이미 그렇게 처리합니다)
 
-**external-dns 와 Terraform 이 같은 DNS 를 관리하면 충돌합니다.** 둘 다 같은 레코드를
-소유하려 해서 한쪽이 고치면 다른 쪽이 되돌립니다. 이 저장소는 external-dns 에
-일원화했고, 그래서 `argocd_route53_zone_name` 을 비워 두었습니다.
+**Secrets Manager 이름 예약** — `recovery_window_in_days = 0` 으로 두어
+destroy 직후 같은 이름으로 다시 apply 할 수 있습니다.
 
-**Secrets Manager 이름 예약** — destroy 후 같은 이름으로 다시 만들면
-30일간 `already scheduled for deletion` 으로 실패할 수 있습니다.
-
-**RDS Multi-AZ DB Cluster** — `db.c6gd.medium` 을 쓰는 Multi-AZ DB 클러스터는
-리전별 지원이 제한적입니다. 배포 리전에서 지원하지 않으면 database 모듈만
-실패하므로, 인스턴스 클래스를 바꾸거나 단일 인스턴스로 전환해야 합니다.
+**RDS 는 기본 비활성** — `create_rds = false` 입니다. sa-east-1 의 Multi-AZ DB
+클러스터 최소 사양이 `db.m5d.large` 이고 인스턴스를 3대 띄워 비쌉니다.
+필요할 때만 켜세요.
 
 **DB 초기화** — `modules/database/init.sql` 은 자동 실행되지 않습니다.
 RDS Proxy 가 프라이빗 서브넷에 있어 배스천을 거쳐야 하기 때문입니다.

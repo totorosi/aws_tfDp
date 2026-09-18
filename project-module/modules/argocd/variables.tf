@@ -1,22 +1,13 @@
 # ################################################################################
-# 클러스터 접속 정보 (root 에서 module.eks 출력값을 전달)
-# ================================================================================
-variable "cluster_name" {
-  description = "EKS 클러스터 이름"
-  type        = string
-}
-
-variable "cluster_endpoint" {
-  description = "쿠버네티스 API 서버 엔드포인트"
-  type        = string
-}
-
-variable "cluster_ca_certificate" {
-  description = "클러스터 CA 인증서 (base64)"
-  type        = string
-  sensitive   = true
-}
-
+# [참고] 클러스터 접속 정보(cluster_name / endpoint / CA)는 더 이상 받지 않습니다.
+# --------------------------------------------------------------------------------
+# 예전에는 이 모듈이 자체 provider 블록을 갖고 있어서 그 값들이 필요했습니다.
+# 그런데 provider 를 가진 모듈에는 Terraform 이 depends_on 을 막기 때문에
+# destroy 순서를 제대로 잡을 수 없었습니다.
+#
+# 이제 provider 설정은 루트(projects/provider.tf)에 있고 이 모듈은 물려받기만 합니다.
+# 덕분에 root 에서 module "argocd" 에 depends_on = [module.eks] 를 걸 수 있습니다.
+# ################################################################################
 variable "tag_header" {
   description = "Resource Name or Tag:Name Header"
   type        = string
@@ -40,6 +31,8 @@ variable "namespace" {
 
 # ################################################################################
 # ArgoCD UI 접속용 Ingress (ALB)
+# --------------------------------------------------------------------------------
+# 도메인을 쓰지 않으므로 ALB 기본 주소(...elb.amazonaws.com)로 접속합니다.
 # ================================================================================
 variable "create_ingress" {
   description = "ArgoCD UI 용 ALB Ingress 생성 여부"
@@ -48,13 +41,11 @@ variable "create_ingress" {
 }
 
 variable "certificate_arn" {
-  description = "HTTPS 리스너에 쓸 ACM 인증서 ARN (비우면 HTTP 80 만 엽니다)"
-  type        = string
-  default     = ""
-}
-
-variable "ingress_host" {
-  description = "ArgoCD UI 도메인 (비우면 ALB 기본 주소로 접속)"
+  description = <<-EOT
+    HTTPS 리스너에 쓸 ACM 인증서 ARN. 비우면 HTTP 80 만 엽니다.
+    도메인 없이 ALB 기본 주소로 접속하면 인증서 이름이 맞지 않아 브라우저 경고가
+    나므로, 기본값은 비워 두고 HTTP 로 씁니다.
+  EOT
   type        = string
   default     = ""
 }
@@ -96,21 +87,4 @@ variable "app_namespace" {
   description = "앱이 배포될 네임스페이스"
   type        = string
   default     = "web"
-}
-
-variable "route53_zone_name" {
-  description = "ingress_host 의 Route53 호스팅 영역 이름 (예: example.com). 비우면 레코드를 만들지 않습니다"
-  type        = string
-  default     = ""
-}
-
-variable "lb_controller_release_id" {
-  description = <<-EOT
-    LB Controller Helm 릴리스 ID (eks 모듈 출력값).
-    값 자체는 쓰지 않고 의존 관계를 만들기 위해서만 받습니다.
-    이게 있어야 destroy 시 Ingress 가 컨트롤러보다 먼저 파괴되어
-    컨트롤러가 ALB·타겟그룹·보안그룹까지 회수할 수 있습니다.
-  EOT
-  type        = string
-  default     = ""
 }

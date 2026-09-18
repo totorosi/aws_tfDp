@@ -9,10 +9,10 @@ output "chart_version" {
 }
 
 output "ingress_hostname" {
-  description = "ArgoCD UI 의 ALB 주소 (생성에 2~3분 걸립니다)"
+  description = "ArgoCD UI 의 ALB 주소"
   value = try(
     kubernetes_ingress_v1.argocd[0].status[0].load_balancer[0].ingress[0].hostname,
-    "생성 중 - 잠시 후 kubectl -n ${local.namespace} get ingress 로 확인하세요"
+    ""
   )
 }
 
@@ -27,8 +27,9 @@ output "application_name" {
 }
 
 output "url" {
-  description = "ArgoCD UI 접속 주소"
-  value = local.create_dns_record ? (
-    local.enable_https ? "https://${var.ingress_host}" : "http://${var.ingress_host}"
-  ) : try("http://${kubernetes_ingress_v1.argocd[0].status[0].load_balancer[0].ingress[0].hostname}", "생성 중")
+  description = "ArgoCD UI 접속 주소 (도메인 없이 ALB 기본 주소를 씁니다)"
+  value = try(
+    "${local.enable_https ? "https" : "http"}://${kubernetes_ingress_v1.argocd[0].status[0].load_balancer[0].ingress[0].hostname}",
+    "Ingress 미생성"
+  )
 }

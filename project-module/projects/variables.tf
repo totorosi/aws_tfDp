@@ -129,33 +129,6 @@ variable "argocd_certificate_arn" {
   default     = ""
 }
 
-variable "argocd_ingress_host" {
-  description = "ArgoCD UI 도메인 (비우면 ALB 기본 주소로 HTTP 접속)"
-  type        = string
-  default     = ""
-}
-
-variable "argocd_route53_zone_name" {
-  description = "argocd_ingress_host 의 Route53 호스팅 영역 (비우면 DNS 레코드를 만들지 않음)"
-  type        = string
-  default     = ""
-}
-
-# ################################################################################
-# external-dns
-# ================================================================================
-variable "external_dns_domains" {
-  description = "external-dns 가 관리할 도메인 목록 (비우면 아무 레코드도 만들지 않음)"
-  type        = list(string)
-  default     = []
-}
-
-variable "external_dns_policy" {
-  description = "upsert-only(생성·수정만) 또는 sync(Ingress 삭제 시 레코드도 삭제)"
-  type        = string
-  default     = "upsert-only"
-}
-
 # ################################################################################
 # compute (범용 EC2)
 # ================================================================================
