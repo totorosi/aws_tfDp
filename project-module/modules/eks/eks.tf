@@ -289,7 +289,7 @@ data "http" "iam_policy" {
 # 2. 가져온 JSON을 이용해 IAM 정책 생성
 resource "aws_iam_policy" "lb_controller" {
   # 같은 계정에 이전 실습이 만든 동일 이름의 정책이 남아 있어 충돌합니다.
-  # (std15-ex-AWSLoadBalancerControllerIAMPolicy 가 다른 역할에 연결된 상태)
+  # (같은 이름의 정책이 다른 실습에서 만들어져 다른 역할에 연결된 상태였음)
   # 남의 리소스를 건드리지 않도록 이름을 달리합니다.
   name        = "${local.tag_header}alb-controller-policy"
   path        = "/"
