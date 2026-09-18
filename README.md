@@ -147,6 +147,7 @@ Settings → Secrets and variables → Actions
 | `TF_BACKEND_DYNAMODB_TABLE` | 상태 잠금 DynamoDB 테이블 이름 |
 | `TF_VAR_OWNER` | 리소스 이름 접두사 |
 | `TF_VAR_KEY_PAIR` | EC2 키 페어 이름 |
+| `AWS_ROLE_ARN` | OIDC 역할 ARN (등록하면 액세스 키 대신 이걸 씁니다) |
 
 임시 자격 증명(`ASIA...` 로 시작)을 쓰는 경우에만 `AWS_SESSION_TOKEN` 이
 추가로 필요합니다. 장기 키(`AKIA...`)는 필요 없습니다.
@@ -204,6 +205,70 @@ Application(finalizer) → ArgoCD Ingress → ArgoCD Helm
 ```
 
 아무것도 지우지 않고 잔여물만 셉니다. 전부 0 이면 정상입니다.
+
+## GitHub Actions 인증 (OIDC)
+
+CI 는 두 가지 방식으로 AWS 에 붙을 수 있고, 워크플로가 자동으로 고릅니다.
+
+| Secret `AWS_ROLE_ARN` | 인증 방식 |
+|---|---|
+| 없음 | 액세스 키 (구 방식) |
+| 있음 | **OIDC** (권장) |
+
+### OIDC 가 나은 이유
+
+액세스 키는 만료가 없습니다. 유출되면 지울 때까지 유효하고, 훔친 사람이
+자기 노트북에서도 쓸 수 있습니다.
+
+OIDC 는 GitHub 이 실행할 때마다 `나는 이 저장소의 이 워크플로다` 라는 서명된
+토큰을 발급하고, AWS 가 그걸 확인해 1시간짜리 임시 자격 증명을 내줍니다.
+보관되는 비밀이 없고, 다른 저장소에서는 가져갈 수 없습니다.
+
+### 전환 순서
+
+순서를 지키면 CI 가 중간에 끊기지 않습니다.
+
+```bash
+# 1. 이 계정에 GitHub OIDC 공급자가 이미 있는지 확인
+aws iam list-open-id-connect-providers | grep githubusercontent
+#    있으면 remote-backend/terraform.tfvars 에
+#      create_github_oidc_provider = false
+
+# 2. tfvars 에 값 채우기 (terraform.tfvars.example 참고)
+#      github_repository = "<소유자>/<저장소>"
+#      tag_header        = "<본인-IAM-사용자명>-"
+
+# 3. 역할 생성
+cd remote-backend
+terraform init -backend-config=backend.hcl
+terraform apply
+
+# 4. 역할 ARN 을 Secret 으로 등록
+gh secret set AWS_ROLE_ARN --body "$(terraform output -raw github_actions_role_arn)"
+
+# 5. Actions 에서 plan 을 한 번 돌려 OIDC 로 붙는지 확인
+#    (인증 단계 이름이 "AWS 인증 (OIDC - 권장)" 으로 표시되면 성공)
+
+# 6. 확인됐으면 액세스 키 Secret 삭제
+gh secret delete AWS_ACCESS_KEY_ID
+gh secret delete AWS_SECRET_ACCESS_KEY
+```
+
+### 주의: 공유 계정
+
+OIDC 공급자는 **AWS 계정당 하나뿐인 공용 리소스**입니다.
+이 계정을 반 전체가 쓴다면:
+
+- 다른 사람이 먼저 만들었으면 `create_github_oidc_provider = false` 로 두세요
+- 공급자에 `prevent_destroy` 를 걸어 두었습니다. 지우면 남의 CI 도 깨집니다
+- IAM 역할 이름에는 `tag_header` 가 붙어 사람마다 구분됩니다
+
+### 권한 범위는 그대로입니다
+
+역할에는 `AdministratorAccess` 가 붙습니다. 지금 CI 가 쓰는 IAM 사용자와
+같은 권한이라 이번 전환으로 넓어지지도 좁아지지도 않습니다.
+OIDC 는 **자격 증명 보관 문제**를 고치는 것이지 **권한 범위 문제**를 고치지
+않습니다. 좁히려면 `github_actions_policy_arns` 를 바꾸세요.
 
 ## 알아둘 점
 
