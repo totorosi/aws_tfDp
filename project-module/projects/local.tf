@@ -75,6 +75,14 @@ locals {
   # EKS 모듈에 넘길 cluster 타입 서브넷 ID 목록.
   # data 소스로 조회하지 않고 network 모듈 출력값에서 직접 뽑아내므로
   # Terraform 이 network -> eks 순서를 자동으로 보장합니다.
+  # compute 모듈에 넘길 public 서브넷 ID 목록
+  public_subnet_ids = [
+    for k, v in module.network.network.subnets : v.id if v.tags["Type"] == "public"
+  ]
+
+  # compute 인스턴스에 붙일 보안 그룹 (SSH + 외부 HTTP/HTTPS)
+  ec2_security_group_ids = [module.network.ssh_sg, module.network.external_alb_sg]
+
   cluster_subnet_ids = [
     for k, v in module.network.network.subnets : v.id if v.tags["Type"] == "cluster"
   ]

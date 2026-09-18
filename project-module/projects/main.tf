@@ -98,7 +98,21 @@ module "static_web_site" {
 # }
 
 # --------------------------------------------------------------------------------
-# module "compute" {
-#   source        = "../modules/compute"
-#   ec2_options   = var.options
-# }
+# 범용 EC2. instance_count 기본값이 0 이라 값을 주기 전까지 아무것도 만들지 않습니다.
+module "compute" {
+  source = "../modules/compute"
+
+  instance_count = var.ec2_instance_count
+  instance_type  = var.ec2_instance_type
+
+  # network 모듈 출력값을 전달합니다. data 소스로 조회하면
+  # plan 시점에 서브넷이 아직 없어 실패합니다.
+  subnet_ids             = local.public_subnet_ids
+  vpc_security_group_ids = local.ec2_security_group_ids
+
+  ami_id     = local.ami_id
+  key_pair   = var.key_pair
+  tag_header = local.tag_header
+
+  associate_public_ip_address = var.ec2_associate_public_ip
+}

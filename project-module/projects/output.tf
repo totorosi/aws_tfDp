@@ -168,3 +168,21 @@ output "external_dns_logs_command" {
   description = "external-dns 동작 로그 확인 명령"
   value       = module.external_dns.logs_command
 }
+
+# ################################################################################
+# compute (범용 EC2)
+# ================================================================================
+output "ec2_instance_ids" {
+  description = "생성된 EC2 인스턴스 ID 목록 (ec2_instance_count 가 0 이면 빈 목록)"
+  value       = module.compute.instance_ids
+}
+
+output "ec2_instances" {
+  description = "EC2 인스턴스 상세 (이름 -> ID/IP/AZ)"
+  value       = module.compute.instances
+}
+
+output "ec2_ssh_commands" {
+  description = "퍼블릭 IP 가 있는 인스턴스의 SSH 접속 명령"
+  value       = module.compute.ssh_commands
+}

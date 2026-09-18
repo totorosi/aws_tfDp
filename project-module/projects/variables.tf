@@ -155,3 +155,24 @@ variable "external_dns_policy" {
   type        = string
   default     = "upsert-only"
 }
+
+# ################################################################################
+# compute (범용 EC2)
+# ================================================================================
+variable "ec2_instance_count" {
+  description = "생성할 EC2 인스턴스 개수. 0 이면 만들지 않습니다"
+  type        = number
+  default     = 0
+}
+
+variable "ec2_instance_type" {
+  description = "EC2 인스턴스 타입"
+  type        = string
+  default     = "t3.micro"
+}
+
+variable "ec2_associate_public_ip" {
+  description = "EC2 에 퍼블릭 IP 자동 할당 여부"
+  type        = bool
+  default     = false
+}
