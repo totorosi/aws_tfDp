@@ -54,21 +54,18 @@ locals {
     }
   }
 
-  owner = var.owner
   tag_header = (var.owner != "" && var.env_type != "") ? "${var.owner}-${var.env_type}-" : (
     (var.owner != "") ? "${var.owner}-" : ""
   )
   vpc_options = var.vpc_options
-  # domain
-  domain_name = var.domain_name
+
 
   ami_id = var.ami_type == "ubuntu2404" ? data.aws_ami.ubuntu_24_04.id : data.aws_ami.amazon_linux_2023.id
 
   region = data.aws_region.current.region
 
 
-  vpc_id  = module.network.network.vpc.id
-  subnets = module.network.network.subnets
+  vpc_id = module.network.network.vpc.id
 
   mysql_sg_id = module.network.mysql_sg
 
@@ -86,18 +83,6 @@ locals {
   cluster_subnet_ids = [
     for k, v in module.network.network.subnets : v.id if v.tags["Type"] == "cluster"
   ]
-  # ec2_options = {
-  #   count                                 = var.ec2_count
-  #   ami_id                                = local.ami_id
-  #   instance_type                         = var.instance_type
-  #   subnet_id                             = ""
-  #   ssociate_public_ip_address            = false
-  #   volume_size                           = 10
-  #   volume_type                           = "gp3"
-  #   delete_on_termination                 = true # 인스턴스 삭제 시 함께 삭제
-  #   key_name                              = ""
-  #   vpc_security_group_ids                = []
-  # }
 }
 
 

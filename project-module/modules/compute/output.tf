@@ -3,16 +3,6 @@ output "instance_ids" {
   value       = aws_instance.this[*].id
 }
 
-output "private_ips" {
-  description = "인스턴스 프라이빗 IP 목록"
-  value       = aws_instance.this[*].private_ip
-}
-
-output "public_ips" {
-  description = "인스턴스 퍼블릭 IP 목록 (associate_public_ip_address 가 false 면 빈 값)"
-  value       = aws_instance.this[*].public_ip
-}
-
 output "instances" {
   description = "Name 태그 -> 주요 정보 맵"
   value = {

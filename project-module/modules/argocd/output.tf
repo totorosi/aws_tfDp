@@ -3,10 +3,6 @@ output "namespace" {
   value       = local.namespace
 }
 
-output "chart_version" {
-  description = "설치된 argo-cd 차트 버전"
-  value       = helm_release.argocd.version
-}
 
 output "ingress_hostname" {
   description = "ArgoCD UI 의 ALB 주소"

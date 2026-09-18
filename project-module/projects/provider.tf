@@ -60,12 +60,6 @@ terraform {
     encrypt = true                                              # 상태 파일 암호화 여부
   }
 
-  #  required_providers {
-  #    google = {
-  #      source = "hashicorp/google"
-  #      version = "~>6.0" # 6.0~<7.0
-  #    }
-  #  }
 }
 
 # ################################################################################

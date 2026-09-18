@@ -1,6 +1,5 @@
 locals {
-  tag_header = var.tag_header
-  namespace  = var.namespace
+  namespace = var.namespace
 
   # 도메인을 쓰지 않으므로 인증서 ARN 을 직접 지정했을 때만 HTTPS 를 엽니다.
   enable_https = var.certificate_arn != ""

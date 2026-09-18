@@ -16,11 +16,6 @@ variable "mysql_sg_id" {
   default     = ""
 }
 
-variable "azs" {
-  description = "Network CIDR"
-  type        = list(string)
-  default     = []
-}
 
 
 variable "tag_header" {

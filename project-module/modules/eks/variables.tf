@@ -16,11 +16,6 @@ variable "region" {
   default     = ""
 }
 
-variable "node_instance_type" {
-  description = "node instance type"
-  type        = string
-  default     = ""
-}
 
 variable "eks_admin_principal_arns" {
   description = "EKS 클러스터에 admin 권한을 추가로 부여할 IAM 사용자/역할 ARN 목록 (클러스터 생성자 본인은 제외)"

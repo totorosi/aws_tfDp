@@ -4,7 +4,6 @@
 # module "store" {
 #   source     = "../modules/store"
 #   tag_header = local.tag_header
-#   region     = local.region
 #
 #   lifecycle_rules = [{
 #     id                                 = "log-archive"

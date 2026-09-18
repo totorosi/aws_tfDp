@@ -42,35 +42,6 @@ variable "vpc_options" {
   }
 }
 
-# # EC2 Instance 속성
-# variable "ec2_options" {
-#   description           = "EC2 Instance에 필요한 속성값"
-#   type = object({
-#     count                                 = optional(number, "default")
-#     ami_id                                = optional(string, "")
-#     instance_type                         = optional(string, "t3.micro"
-#     subnet_id                             = optional(string, "")
-#     ssociate_public_ip_address            = optional(bool, false)
-#     volume_size                           = optional(number, 10)
-#     volume_type                           = optional(string, "gp3"
-#     delete_on_termination                 = optional(bool, true) # 인스턴스 삭제 시 함께 삭제
-#     key_name                              = optional(string, "")
-#     vpc_security_group_ids                = optional(list(string), []) 
-#   })
-
-#   default = {
-#     count                                 = 0
-#     ami_id                                = ""
-#     instance_type                         = ""
-#     subnet_id                             = ""
-#     ssociate_public_ip_address            = false
-#     volume_size                           = 10
-#     volume_type                           = "gp3"
-#     delete_on_termination                 = true # 인스턴스 삭제 시 함께 삭제
-#     key_name                              = ""
-#     vpc_security_group_ids                = []
-#   }
-# }
 
 
 variable "create_nat_gateway" {

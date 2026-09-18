@@ -13,18 +13,6 @@ subnet_type = ["public", "private", "cluster"]
 
 ami_type = "ubuntu2404"
 
-# ec2_options = {
-#   count                      = 1
-#   ami_id                     = "ami-0c7217cdde317cfec" # 예시 AMI ID
-#   instance_type              = "t3.micro"
-#   subnet_id                  = ""
-#   associate_public_ip_address = false
-#   volume_size                = 30
-#   volume_type                = "gp3"
-#   delete_on_termination      = true
-#   key_name                   = "<본인-키페어-이름>"
-#   vpc_security_group_ids     = []
-# }
 
 # ################################################################################
 # ArgoCD

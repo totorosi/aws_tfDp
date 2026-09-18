@@ -1,6 +1,4 @@
 locals {
-  tag_header        = var.tag_header
-  region            = var.region
   bucket_name       = "${var.tag_header}${var.bucket_name}"
   force_destroy     = var.force_destroy
   enable_versioning = var.enable_versioning
