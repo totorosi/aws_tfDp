@@ -103,3 +103,14 @@ variable "route53_zone_name" {
   type        = string
   default     = ""
 }
+
+variable "lb_controller_release_id" {
+  description = <<-EOT
+    LB Controller Helm 릴리스 ID (eks 모듈 출력값).
+    값 자체는 쓰지 않고 의존 관계를 만들기 위해서만 받습니다.
+    이게 있어야 destroy 시 Ingress 가 컨트롤러보다 먼저 파괴되어
+    컨트롤러가 ALB·타겟그룹·보안그룹까지 회수할 수 있습니다.
+  EOT
+  type        = string
+  default     = ""
+}

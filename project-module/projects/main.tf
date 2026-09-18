@@ -61,6 +61,10 @@ module "argocd" {
 
   tag_header = local.tag_header
 
+  # 값은 쓰지 않고 의존 관계만 만듭니다.
+  # destroy 시 Ingress 가 LB Controller 보다 먼저 파괴되게 하는 장치입니다.
+  lb_controller_release_id = module.eks.lb_controller_release_id
+
   # ArgoCD 가 바라볼 Git 저장소. k8s/app 의 매니페스트를 클러스터에 맞춥니다.
   git_repo_url        = var.argocd_repo_url
   git_target_revision = var.argocd_target_revision

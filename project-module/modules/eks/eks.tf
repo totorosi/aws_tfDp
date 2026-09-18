@@ -415,6 +415,20 @@ resource "helm_release" "aws_load_balancer_controller" {
     name  = "vpcId"
     value = local.vpc_id
   }
+
+  # ----------------------------------------------------------------------------
+  # [중요] 노드 그룹보다 "먼저" 파괴되어야 합니다.
+  #
+  # 이 차트는 자기 자신을 지키는 웹훅(aws-load-balancer-webhook)을 함께 설치합니다.
+  # 노드가 먼저 사라지면 컨트롤러 파드가 죽고, 그 뒤 helm uninstall 이
+  # Service/aws-load-balancer-webhook-service 를 지우려 할 때 API 서버가
+  # 응답 없는 웹훅을 호출하다 실패합니다. 릴리스는 uninstalling 상태로 갇히고
+  # terraform 은 "failed to delete release" 만 남긴 채 멈춥니다.
+  #
+  # 아래 의존 관계가 있으면 destroy 는 역순(컨트롤러 -> 노드 그룹)으로 진행되어
+  # 파드가 살아 있는 동안 uninstall 이 끝납니다.
+  # ----------------------------------------------------------------------------
+  depends_on = [aws_eks_node_group.eks_node_group]
 }
 
 

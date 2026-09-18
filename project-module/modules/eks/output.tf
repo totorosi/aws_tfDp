@@ -80,3 +80,13 @@ output "kubeconfig_command" {
   description = "로컬에서 이 클러스터에 접속하기 위한 명령어"
   value       = "aws eks update-kubeconfig --region ${local.region} --name ${aws_eks_cluster.k8s.name}"
 }
+
+output "lb_controller_release_id" {
+  description = <<-EOT
+    LB Controller Helm 릴리스 ID.
+    이 값을 Ingress 를 만드는 모듈에 넘기면 의존 관계가 생겨,
+    destroy 시 Ingress 가 컨트롤러보다 먼저 파괴됩니다.
+    컨트롤러가 살아 있어야 ALB·타겟그룹·보안그룹까지 정리됩니다.
+  EOT
+  value       = helm_release.aws_load_balancer_controller.id
+}
