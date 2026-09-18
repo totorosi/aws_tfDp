@@ -12,3 +12,12 @@ output "backend_config" {
   description = "이 값을 그대로 backend.hcl 에 옮겨 적으면 됩니다"
   value       = module.remote.backend_config
 }
+
+output "github_actions_role_arn" {
+  description = <<-EOT
+    GitHub Actions 가 가져갈 역할의 ARN.
+    이 값을 GitHub 저장소 Secret 의 AWS_ROLE_ARN 에 넣으면
+    워크플로가 액세스 키 대신 OIDC 로 인증합니다.
+  EOT
+  value       = aws_iam_role.github_actions.arn
+}

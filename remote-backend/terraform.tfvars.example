@@ -2,3 +2,17 @@
 #   cp terraform.tfvars.example terraform.tfvars
 bucket_name     = "<본인-상태저장-S3-버킷-이름>"
 lock_table_name = "<본인-상태잠금-DynamoDB-테이블-이름>"
+
+# ####################################################################################################
+# GitHub Actions OIDC
+# ####################################################################################################
+# 이 역할을 쓸 저장소 ("소유자/저장소" 형식)
+github_repository = "<본인-GitHub-사용자>/<저장소-이름>"
+
+# 리소스 이름 접두사. 계정을 여럿이 공유하므로 반드시 본인 것으로 채우세요.
+# 비워 두면 역할 이름이 "github-actions-role" 이 되어 다른 사람과 충돌합니다.
+tag_header = "<본인-IAM-사용자명>-"
+
+# 이 계정에 GitHub OIDC 공급자가 이미 있으면 false 로 두세요.
+#   aws iam list-open-id-connect-providers | grep githubusercontent
+create_github_oidc_provider = true
