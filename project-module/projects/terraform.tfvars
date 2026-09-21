@@ -31,3 +31,24 @@ argocd_create_ingress  = true
 # 본인 공인 IP 를 넣으세요. 0.0.0.0/0 은 쓰지 마세요.
 #   curl -s https://checkip.amazonaws.com   으로 본인 IP 확인
 # ssh_allowed_cidrs = ["203.0.113.4/32"]
+
+# ################################################################################
+# CI/CD (CodePipeline + CodeBuild + CodeDeploy -> EC2)
+# --------------------------------------------------------------------------------
+# [주의] CodeDeploy 는 EKS 를 지원하지 않습니다 (EC2/온프레미스, Lambda, ECS 만).
+#        그래서 이 파이프라인은 EC2 로 배포하고, EKS 배포는 ArgoCD 가 맡습니다.
+#
+# [apply 후 수동 절차 1회]
+#   CodeStar Connection 이 PENDING 으로 생성됩니다. 콘솔에서 승인해야 파이프라인이 돕니다.
+#     terraform output pipeline_connection_setup
+# ################################################################################
+create_cicd            = true
+cicd_github_repository = "totorosi/aws_tfDp"
+cicd_github_branch     = "main"
+
+# CodeDeploy 배포 대상 EC2. 0 이면 배포할 곳이 없습니다.
+ec2_instance_count = 2
+
+# 에이전트가 S3(아티팩트)와 CodeDeploy 엔드포인트에 닿아야 합니다.
+# 퍼블릭 서브넷에 두면서 퍼블릭 IP 가 없으면 IGW 로 나갈 수 없습니다.
+ec2_associate_public_ip = true

@@ -26,9 +26,17 @@ chmod +x ./install
 echo "=== 3. 에이전트 기동 ==="
 systemctl enable codedeploy-agent
 systemctl restart codedeploy-agent
-systemctl is-active codedeploy-agent && echo "에이전트 동작 중"
+systemctl is-active codedeploy-agent && echo "CodeDeploy 에이전트 동작 중"
 
-echo "=== 4. nginx 기본 기동 ==="
+echo "=== 4. SSM 에이전트 (키 없이 접속용) ==="
+# 우분투 공식 AMI 에는 snap 으로 들어 있지만 꺼져 있는 경우가 있습니다.
+# 이게 살아 있어야 aws ssm start-session 으로 들어가 배포 로그를 볼 수 있습니다.
+# (ssh_allowed_cidrs 기본값이 빈 목록이라 SSH 는 닫혀 있습니다)
+snap install amazon-ssm-agent --classic 2>/dev/null || true
+snap start amazon-ssm-agent 2>/dev/null || true
+systemctl enable --now snap.amazon-ssm-agent.amazon-ssm-agent.service 2>/dev/null || true
+
+echo "=== 5. nginx 기본 기동 ==="
 # 첫 배포 전에도 80 포트가 응답하도록 켜 둡니다.
 systemctl enable nginx
 systemctl start nginx
