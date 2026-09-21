@@ -1,0 +1,30 @@
+# ####################################################################################################
+# CodeBuild 빌드 정의
+# ====================================================================================================
+# 지금은 애플리케이션 소스가 없고 nginx 를 그대로 쓰므로,
+# 이 단계는 "컴파일"이 아니라 "CodeDeploy 가 먹을 배포 번들 조립"입니다.
+#
+# 나중에 실제 소스가 생기면 build 단계에 빌드 명령을 넣고,
+# 결과물을 html/ 에 떨어뜨리면 그대로 배포됩니다.
+# ####################################################################################################
+version: 0.2
+
+phases:
+  build:
+    commands:
+      - echo "배포 번들을 조립합니다"
+      # 어떤 커밋이 배포됐는지 페이지에서 바로 확인할 수 있게 심어 둡니다.
+      # CODEBUILD_RESOLVED_SOURCE_VERSION 은 CodeBuild 가 주입하는 커밋 SHA 입니다.
+      - SHA="${CODEBUILD_RESOLVED_SOURCE_VERSION:-unknown}"
+      - BUILT_AT="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+      - sed -i "s|__COMMIT__|${SHA}|g; s|__BUILT_AT__|${BUILT_AT}|g" app/html/index.html
+      - echo "commit=${SHA} built_at=${BUILT_AT}"
+
+artifacts:
+  # app/ 안의 내용이 번들의 최상위가 됩니다.
+  # appspec.yml 은 반드시 번들 최상위에 있어야 CodeDeploy 가 인식합니다.
+  base-directory: app
+  files:
+    - appspec.yml
+    - scripts/**/*
+    - html/**/*

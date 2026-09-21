@@ -177,3 +177,43 @@ variable "ssh_allowed_cidrs" {
   type        = list(string)
   default     = []
 }
+
+# ################################################################################
+# CI/CD (CodePipeline + CodeBuild + CodeDeploy -> EC2)
+# --------------------------------------------------------------------------------
+# [주의] CodeDeploy 는 EKS 를 지원하지 않습니다 (EC2/온프레미스, Lambda, ECS 만).
+#        그래서 이 파이프라인은 EC2 로 배포합니다.
+#        EKS 배포는 기존대로 ArgoCD 가 담당하며 서로 독립입니다.
+#
+# 켜려면 terraform.tfvars 에서
+#   create_cicd        = true
+#   ec2_instance_count = 2      <- 배포 대상이 될 EC2. 0 이면 배포할 곳이 없습니다
+#   ec2_associate_public_ip = true
+# ################################################################################
+variable "create_cicd" {
+  description = "CodePipeline / CodeBuild / CodeDeploy 생성 여부"
+  type        = bool
+  default     = false
+}
+
+variable "cicd_github_repository" {
+  description = "파이프라인이 감시할 GitHub 저장소 (소유자/저장소)"
+  type        = string
+  default     = ""
+}
+
+variable "cicd_github_branch" {
+  description = "감시할 브랜치"
+  type        = string
+  default     = "main"
+}
+
+variable "cicd_codestar_connection_arn" {
+  description = <<-EOT
+    이미 승인된 CodeStar Connection ARN. 비우면 새로 만듭니다.
+    새로 만든 연결은 PENDING 상태이므로 콘솔에서 한 번 승인해야 합니다.
+    (AWS 가 요구하는 OAuth 절차라 Terraform 으로 자동화할 수 없습니다)
+  EOT
+  type        = string
+  default     = ""
+}

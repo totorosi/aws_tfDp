@@ -1,0 +1,39 @@
+# ####################################################################################################
+# CodeDeploy 배포 정의
+# ====================================================================================================
+# files : 번들의 어떤 디렉터리를 EC2 의 어디로 복사할지
+# hooks : 복사 전후에 무엇을 실행할지
+#
+# 훅 실행 순서 (in-place 배포)
+#   ApplicationStop -> BeforeInstall -> (파일 복사) -> AfterInstall -> ApplicationStart -> ValidateService
+#
+# ApplicationStop 은 "직전에 배포된 버전"의 스크립트를 씁니다.
+# 그래서 첫 배포 때는 실행되지 않습니다. 정상입니다.
+# ####################################################################################################
+version: 0.0
+os: linux
+
+files:
+  - source: html
+    destination: /var/www/html
+
+hooks:
+  ApplicationStop:
+    - location: scripts/stop_nginx.sh
+      timeout: 60
+      runas: root
+
+  BeforeInstall:
+    - location: scripts/install_nginx.sh
+      timeout: 300
+      runas: root
+
+  AfterInstall:
+    - location: scripts/start_nginx.sh
+      timeout: 120
+      runas: root
+
+  ValidateService:
+    - location: scripts/validate.sh
+      timeout: 60
+      runas: root

@@ -85,3 +85,24 @@ variable "enable_detailed_monitoring" {
   type        = bool
   default     = false
 }
+
+# -------------------------------------------
+# CodeDeploy 등 AWS 서비스와 연동할 때 필요한 값
+variable "iam_instance_profile" {
+  description = <<-EOT
+    인스턴스에 붙일 IAM 인스턴스 프로파일 이름. 비우면 붙이지 않습니다.
+    CodeDeploy 에이전트는 아티팩트를 S3 에서 받아가야 하므로 이 값이 필요합니다.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "extra_tags" {
+  description = <<-EOT
+    Name 외에 추가로 붙일 태그.
+    CodeDeploy 배포 그룹은 EC2 태그로 대상을 찾으므로 여기에 식별 태그를 넣습니다.
+    예: { CodeDeploy = "std15-ex-nginx" }
+  EOT
+  type        = map(string)
+  default     = {}
+}

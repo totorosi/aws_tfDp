@@ -85,6 +85,13 @@ locals {
   # compute 인스턴스에 붙일 보안 그룹 (SSH + 외부 HTTP/HTTPS)
   ec2_security_group_ids = [module.network.ssh_sg, module.network.external_alb_sg]
 
+  # CodeDeploy 에이전트 설치 스크립트. cicd 모듈을 켤 때만 EC2 에 들어갑니다.
+  # 리전이 스크립트 안에 들어가야 해서 자리표시자를 치환합니다.
+  codedeploy_user_data = var.create_cicd ? replace(
+    file("${path.module}/../modules/compute/codedeploy-agent-user-data.sh"),
+    "__REGION__", local.region
+  ) : ""
+
   cluster_subnet_ids = [
     for k, v in module.network.network.subnets : v.id if v.tags["Type"] == "cluster"
   ]

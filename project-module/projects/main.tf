@@ -104,7 +104,8 @@ module "rds" {
 }
 
 # --------------------------------------------------------------------------------
-# 범용 EC2. instance_count 기본값이 0 이라 값을 주기 전까지 아무것도 만들지 않습니다.
+# 범용 EC2. CodePipeline 을 켜면 이 인스턴스들이 CodeDeploy 배포 대상이 됩니다.
+# create_cicd = true 일 때 인스턴스 프로파일과 식별 태그가 자동으로 붙습니다.
 module "compute" {
   source = "../modules/compute"
 
@@ -121,4 +122,42 @@ module "compute" {
   tag_header = local.tag_header
 
   associate_public_ip_address = var.ec2_associate_public_ip
+
+  # --------------------------------------------------------------------------
+  # CodeDeploy 연동
+  # --------------------------------------------------------------------------
+  # 1) 인스턴스 프로파일: 에이전트가 S3 에서 배포 번들을 받아가려면 필요합니다.
+  # 2) 태그: 배포 그룹이 이 태그로 대상을 찾습니다.
+  #    태그가 안 맞으면 배포가 "성공"으로 끝나면서 아무 데도 배포되지 않습니다.
+  # 3) user_data: CodeDeploy 에이전트를 설치합니다. 없으면 배포가 타임아웃됩니다.
+  #
+  # cicd 모듈이 꺼져 있으면(count=0) 셋 다 빈 값이 되어 평범한 EC2 가 됩니다.
+  iam_instance_profile = try(module.cicd[0].instance_profile_name, "")
+  extra_tags           = try(module.cicd[0].deploy_tags, {})
+  user_data            = local.codedeploy_user_data
+}
+
+# --------------------------------------------------------------------------------
+# CodePipeline + CodeBuild + CodeDeploy (EC2 배포)
+# --------------------------------------------------------------------------------
+# [EKS 가 아니라 EC2 인 이유]
+# CodeDeploy 가 지원하는 배포 대상은 EC2/온프레미스, Lambda, ECS 셋뿐입니다.
+# EKS 는 지원하지 않습니다. 그래서 이 파이프라인은 EC2 로 배포하고,
+# EKS 쪽 배포는 기존대로 ArgoCD 가 담당합니다. 두 경로는 서로 독립입니다.
+#
+#   GitHub ──> CodePipeline ──> CodeBuild ──> CodeDeploy ──> EC2 (nginx)
+#   GitHub ──> ArgoCD ────────────────────────────────────> EKS (nginx)
+module "cicd" {
+  source = "../modules/cicd"
+  count  = var.create_cicd ? 1 : 0
+
+  tag_header = local.tag_header
+  region     = local.region
+
+  github_repository = var.cicd_github_repository
+  github_branch     = var.cicd_github_branch
+
+  # 이미 승인된 연결이 있으면 그 ARN 을 넣으세요. 비우면 새로 만듭니다.
+  # (새로 만든 연결은 콘솔에서 사람이 한 번 승인해야 합니다)
+  codestar_connection_arn = var.cicd_codestar_connection_arn
 }

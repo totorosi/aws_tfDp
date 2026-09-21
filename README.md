@@ -152,6 +152,105 @@ Settings → Secrets and variables → Actions
 임시 자격 증명(`ASIA...` 로 시작)을 쓰는 경우에만 `AWS_SESSION_TOKEN` 이
 추가로 필요합니다. 장기 키(`AKIA...`)는 필요 없습니다.
 
+## CI/CD 파이프라인 (CodePipeline → CodeDeploy → EC2)
+
+기본값은 꺼져 있습니다. `create_cicd = true` 로 켭니다.
+
+### 왜 EKS 가 아니라 EC2 인가
+
+**CodeDeploy 는 EKS 를 지원하지 않습니다.** 배포 대상이 EC2/온프레미스, Lambda,
+ECS 셋뿐입니다. 그래서 이 파이프라인은 EC2 로 배포하고, EKS 배포는 기존대로
+ArgoCD 가 담당합니다. 두 경로는 서로 독립입니다.
+
+```
+GitHub ──> CodePipeline ──> CodeBuild ──> CodeDeploy ──> EC2  (nginx)
+GitHub ──> ArgoCD ─────────────────────────────────────> EKS  (nginx)
+```
+
+### 단계별로 무슨 일이 일어나나
+
+| 단계 | 하는 일 |
+|---|---|
+| **Source** | GitHub `main` 을 받아옴 (CodeStar Connection) |
+| **Build** | CodeBuild 가 `app/buildspec.yml` 로 배포 번들 조립. 커밋 SHA 를 페이지에 심음 |
+| **Deploy** | CodeDeploy 가 태그로 EC2 를 찾아 `app/appspec.yml` 의 훅 실행 |
+
+배포 번들은 `app/` 에 있습니다.
+
+```
+app/
+  buildspec.yml     CodeBuild 가 읽음 (번들 조립)
+  appspec.yml       CodeDeploy 가 읽음 (복사 위치 + 훅)
+  html/index.html   배포될 페이지
+  scripts/          훅에서 실행되는 스크립트 4개
+```
+
+훅 실행 순서 (in-place 배포):
+
+```
+ApplicationStop → BeforeInstall → (파일 복사) → AfterInstall → ValidateService
+ stop_nginx       install_nginx                   start_nginx    validate
+```
+
+`ValidateService` 에서 실패하면 CodeDeploy 가 직전 버전으로 자동 롤백합니다.
+`ApplicationStop` 은 *직전에 배포된* 버전의 스크립트를 쓰므로 첫 배포 때는
+실행되지 않습니다. 정상입니다.
+
+### 켜는 순서
+
+```bash
+# 1. terraform.tfvars 에서
+#      create_cicd             = true
+#      cicd_github_repository  = "<소유자>/<저장소>"
+#      ec2_instance_count      = 2       <- 배포 대상. 0 이면 배포할 곳이 없습니다
+#      ec2_associate_public_ip = true    <- 에이전트가 S3 에 닿아야 합니다
+
+cd project-module/projects
+terraform apply
+
+# 2. [필수] GitHub 연결 승인
+#    Terraform 이 만든 연결은 PENDING 상태입니다. 승인 전에는 파이프라인이 돌지 않습니다.
+terraform output pipeline_connection_setup    # 승인 링크와 절차가 나옵니다
+
+# 3. 승인 확인
+aws codestar-connections list-connections --region sa-east-1   --query "Connections[].[ConnectionName,ConnectionStatus]" --output table
+
+# 4. 파이프라인 확인
+terraform output pipeline_url
+```
+
+### GitHub 연결 승인은 왜 수동인가
+
+CodeStar Connection 은 GitHub 계정으로 OAuth 로그인을 해야 만들어집니다.
+사람이 브라우저에서 승인하는 절차라 **Terraform 으로 자동화할 수 없습니다.**
+Terraform 은 연결을 `PENDING` 상태로 만들어 두는 것까지만 합니다.
+
+승인은 저장소당 한 번이면 됩니다. 이미 승인된 연결이 있으면
+`cicd_codestar_connection_arn` 에 그 ARN 을 넣으면 새로 만들지 않습니다.
+
+### 자주 겪는 문제
+
+| 증상 | 원인 |
+|---|---|
+| 파이프라인이 Source 에서 멈춤 | 연결이 아직 `PENDING`. 콘솔에서 승인 |
+| 배포가 "성공"인데 아무것도 안 바뀜 | EC2 태그가 배포 그룹 필터와 안 맞음. `terraform output pipeline_deploy_targets` 로 확인 |
+| 배포가 타임아웃 | EC2 에 CodeDeploy 에이전트가 없음. user-data 로그 확인: `/var/log/user-data.log` |
+| 에이전트가 번들을 못 받음 | 인스턴스 프로파일 누락, 또는 퍼블릭 IP 가 없어 S3 에 못 닿음 |
+
+에이전트 상태 확인 (SSM 으로 키 없이 접속할 수 있습니다):
+
+```bash
+aws ssm start-session --target <인스턴스ID> --region sa-east-1
+sudo systemctl status codedeploy-agent
+sudo tail -f /var/log/aws/codedeploy-agent/codedeploy-agent.log
+```
+
+### 애플리케이션 소스를 붙이려면
+
+지금은 nginx 를 그대로 쓰므로 Build 단계가 "번들 조립"만 합니다.
+실제 소스가 생기면 `app/buildspec.yml` 의 `build` 단계에 빌드 명령을 넣고,
+결과물을 `app/html/` 에 떨어뜨리면 그대로 배포됩니다.
+
 ## destroy 가 한 번에 끝나는 이유
 
 이 부분이 이 저장소에서 가장 신경 쓴 곳입니다.

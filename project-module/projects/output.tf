@@ -189,3 +189,26 @@ output "ec2_ssh_commands" {
   description = "퍼블릭 IP 가 있는 인스턴스의 SSH 접속 명령"
   value       = module.compute.ssh_commands
 }
+
+# ################################################################################
+# CI/CD (CodePipeline -> CodeDeploy -> EC2)
+# ================================================================================
+output "pipeline_name" {
+  description = "CodePipeline 이름 (create_cicd = false 면 빈 값)"
+  value       = try(module.cicd[0].pipeline_name, "")
+}
+
+output "pipeline_url" {
+  description = "콘솔에서 파이프라인을 여는 주소"
+  value       = try(module.cicd[0].pipeline_url, "")
+}
+
+output "pipeline_connection_setup" {
+  description = "GitHub 연결 승인 안내. 승인 전에는 파이프라인이 돌지 않습니다"
+  value       = try(module.cicd[0].connection_setup_required, "")
+}
+
+output "pipeline_deploy_targets" {
+  description = "CodeDeploy 배포 대상 EC2 에 붙는 태그"
+  value       = try(module.cicd[0].deploy_tags, {})
+}

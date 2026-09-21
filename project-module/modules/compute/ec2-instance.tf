@@ -37,6 +37,9 @@ resource "aws_instance" "this" {
   key_name  = local.key_name
   user_data = local.user_data
 
+  # CodeDeploy 에이전트가 S3 에서 아티팩트를 받아가려면 필요합니다.
+  iam_instance_profile = local.iam_instance_profile
+
   monitoring = var.enable_detailed_monitoring
 
   root_block_device {
@@ -54,9 +57,10 @@ resource "aws_instance" "this" {
     http_put_response_hop_limit = 1
   }
 
-  tags = {
+  # CodeDeploy 배포 그룹이 태그로 대상을 찾으므로 extra_tags 를 함께 붙입니다.
+  tags = merge(var.extra_tags, {
     Name = local.subnet_count > 1 ? "${local.name_prefix}-${count.index + 1}" : local.name_prefix
-  }
+  })
 
   lifecycle {
     precondition {
