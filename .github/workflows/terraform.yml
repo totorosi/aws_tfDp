@@ -162,18 +162,29 @@ jobs:
       - name: 변경 미리보기 (plan)
         id: plan
         if: github.event.inputs.action != 'destroy'
-        run: terraform plan -input=false -no-color -lock-timeout=5m -out=tfplan
+        # tee 로 파일에도 남깁니다. 아래 요약 단계가 이 파일을 읽습니다.
+        #
+        # set -o pipefail 이 없으면 파이프라인의 종료 코드가 tee 의 것이 되어,
+        # terraform plan 이 실패해도 이 단계가 성공으로 처리됩니다.
+        run: |
+          set -o pipefail
+          terraform plan -input=false -no-color -lock-timeout=5m -out=tfplan | tee plan.txt
 
+      # plan 출력을 파일로 넘깁니다.
+      #
+      # [이전 방식이 왜 깨졌나]
+      # steps.plan.outputs.stdout 을 env 로 넘겼더니, 생성 리소스가 90개가 넘는
+      # 큰 plan 에서 환경변수가 OS 한계를 넘어 bash 가 시작조차 못 했습니다.
+      #   An error occurred trying to start process '/usr/bin/bash' ... Argument list too long
+      # 작은 plan 에서는 통과해서 한동안 모르고 지나갔습니다.
+      # 파일로 주고받으면 크기와 무관하게 동작합니다.
       - name: plan 결과를 실행 요약에 출력
-        if: github.event.inputs.action != 'destroy'
-        # plan 출력에 백틱/$() 가 섞여 있어도 쉘이 해석하지 않도록 env 로 넘깁니다.
-        env:
-          PLAN_STDOUT: ${{ steps.plan.outputs.stdout }}
+        if: always() && hashFiles(format('{0}/plan.txt', env.WORKDIR)) != ''
         run: |
           {
             echo '### Terraform Plan'
             echo '```terraform'
-            echo "$PLAN_STDOUT" | head -c 900000
+            head -c 900000 plan.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
