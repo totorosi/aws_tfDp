@@ -6,7 +6,7 @@ terraform {
     }
     helm = {
       source  = "hashicorp/helm"
-      version = "~> 2.12" # 락 파일 기준 2.12.1. 메이저 업그레이드 차단용
+      version = "~> 2.12.1" # 락 파일이 고정한 버전. 에디터가 보는 스키마도 여기에 맞춰집니다
     }
     kubectl = {
       source  = "gavinbunney/kubectl"
