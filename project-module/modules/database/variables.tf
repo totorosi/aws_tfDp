@@ -1,19 +1,28 @@
 variable "vpc_id" {
   description = "VPC ID"
   type        = string
-  default     = ""
+  # [필수] 기본값을 두지 않습니다. 기본값이 "" 이면 root 에서 값을 넘기는 줄이
+  # 실수로 빠져도 plan/validate 가 통과해 버리고, 런타임에 빈 값으로 터집니다.
+  # 실제로 그렇게 깨진 적이 있어(aws eks update-kubeconfig --region <빈값>)
+  # 필수 값에서는 default 를 제거했습니다.
 }
 
 variable "region" {
   description = "REGION"
   type        = string
-  default     = ""
+  # [필수] 기본값을 두지 않습니다. 기본값이 "" 이면 root 에서 값을 넘기는 줄이
+  # 실수로 빠져도 plan/validate 가 통과해 버리고, 런타임에 빈 값으로 터집니다.
+  # 실제로 그렇게 깨진 적이 있어(aws eks update-kubeconfig --region <빈값>)
+  # 필수 값에서는 default 를 제거했습니다.
 }
 
 variable "mysql_sg_id" {
   description = "MySQL Security Group"
   type        = string
-  default     = ""
+  # [필수] 기본값을 두지 않습니다. 기본값이 "" 이면 root 에서 값을 넘기는 줄이
+  # 실수로 빠져도 plan/validate 가 통과해 버리고, 런타임에 빈 값으로 터집니다.
+  # 실제로 그렇게 깨진 적이 있어(aws eks update-kubeconfig --region <빈값>)
+  # 필수 값에서는 default 를 제거했습니다.
 }
 
 

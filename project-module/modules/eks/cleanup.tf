@@ -82,13 +82,23 @@ resource "null_resource" "ingress_cleanup" {
           && echo "[cleanup] 타겟 그룹 삭제: $TG"
       done
 
-      # 6) 마지막으로 웹훅을 제거합니다.
-      #    이 프로비저너 직후 terraform 이 helm uninstall 을 실행하는데,
-      #    그때 웹훅이 남아 있으면 컨트롤러가 자기 Service 삭제를 스스로 막아
+      # 6) 컨트롤러 파드가 죽어 있을 때만 웹훅을 제거합니다.
+      #
+      #    웹훅이 남아 있는데 파드가 없으면, 뒤이은 helm uninstall 이
+      #    자기 Service 를 지우려다 응답 없는 웹훅을 호출해 실패하고
       #    릴리스가 uninstalling 상태로 갇힙니다.
-      kubectl delete validatingwebhookconfiguration aws-load-balancer-webhook --ignore-not-found >/dev/null 2>&1
-      kubectl delete mutatingwebhookconfiguration   aws-load-balancer-webhook --ignore-not-found >/dev/null 2>&1
-      echo "[cleanup] LB Controller 웹훅 제거"
+      #
+      #    다만 파드가 살아 있으면 웹훅이 정상 응답하므로 지울 이유가 없습니다.
+      #    무조건 지우면 triggers 변경으로 이 리소스가 "교체"될 때도 실행되어
+      #    멀쩡한 클러스터의 웹훅을 날려 버립니다. 그래서 조건을 답니다.
+      READY=$(kubectl -n kube-system get deploy aws-load-balancer-controller -o jsonpath='{.status.readyReplicas}' 2>/dev/null)
+      if [ -z "$READY" ] || [ "$READY" = "0" ]; then
+        echo "[cleanup] 컨트롤러 파드가 없습니다. 웹훅을 제거해 uninstall 이 막히지 않게 합니다"
+        kubectl delete validatingwebhookconfiguration aws-load-balancer-webhook --ignore-not-found >/dev/null 2>&1
+        kubectl delete mutatingwebhookconfiguration   aws-load-balancer-webhook --ignore-not-found >/dev/null 2>&1
+      else
+        echo "[cleanup] 컨트롤러가 살아 있어 웹훅을 그대로 둡니다 (uninstall 이 정상 처리됩니다)"
+      fi
     EOT
   }
 

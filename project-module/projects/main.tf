@@ -21,6 +21,7 @@ module "eks" {
 
   key_pair   = local.key_pair
   tag_header = local.tag_header
+  region     = local.region
 
   # VPC 와 서브넷을 값으로 넘겨주면 network -> eks 의존 관계가 그래프에 생겨
   # Terraform 이 순서를 알아서 보장합니다. (depends_on 불필요)
