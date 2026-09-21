@@ -27,6 +27,10 @@ module "eks" {
   # Terraform 이 순서를 알아서 보장합니다. (depends_on 불필요)
   vpc_id             = local.vpc_id
   cluster_subnet_ids = local.cluster_subnet_ids
+
+  # CI(GitHub Actions) 역할에 클러스터 admin 을 부여합니다.
+  # 이게 없으면 OIDC 로 전환한 CI 가 kubernetes/helm 프로바이더에서 Unauthorized 로 막힙니다.
+  eks_admin_principal_arns = local.eks_admin_principal_arns
 }
 
 # --------------------------------------------------------------------------------

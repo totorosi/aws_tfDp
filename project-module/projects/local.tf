@@ -92,6 +92,14 @@ locals {
     "__REGION__", local.region
   ) : ""
 
+  # CI 역할에 EKS admin 을 줄 때 쓸 이름과 ARN.
+  # grant_ci_cluster_access 가 false 면 빈 값이라 아무것도 만들지 않습니다.
+  ci_role_name = var.grant_ci_cluster_access ? (
+    var.ci_role_name != "" ? var.ci_role_name : "${var.owner}-github-actions-role"
+  ) : ""
+
+  eks_admin_principal_arns = local.ci_role_name != "" ? [data.aws_iam_role.ci[0].arn] : []
+
   cluster_subnet_ids = [
     for k, v in module.network.network.subnets : v.id if v.tags["Type"] == "cluster"
   ]

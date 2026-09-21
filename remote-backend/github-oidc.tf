@@ -65,12 +65,35 @@ locals {
   #   ref:refs/heads/<브랜치>  : 그 브랜치에서 돈 워크플로
   #   pull_request             : PR 로 돈 워크플로 (plan 전용)
   # 여기에 없는 저장소나 브랜치는 이 역할을 절대 가져갈 수 없습니다.
-  github_subjects = [
-    for s in concat(
-      [for b in var.github_branches : "repo:${var.github_repository}:ref:refs/heads/${b}"],
-      var.github_allow_pull_request ? ["repo:${var.github_repository}:pull_request"] : []
-    ) : s
+  #
+  # [주의] sub 형식이 저장소 설정에 따라 두 가지입니다.
+  #
+  #   기본형   repo:<owner>/<repo>:ref:refs/heads/main
+  #   불변형   repo:<owner>@<ownerId>/<repo>@<repoId>:ref:refs/heads/main
+  #
+  # GitHub 의 "immutable subject claims" 가 켜져 있으면 뒤쪽 형식이 됩니다.
+  # 저장소나 사용자 이름이 바뀌어도 신뢰가 엉뚱한 곳으로 넘어가지 않도록
+  # 숫자 ID 를 함께 박아 넣는 기능입니다. 켜져 있는지는 이렇게 확인합니다.
+  #   gh api repos/<owner>/<repo>/actions/oidc/customization/sub
+  #
+  # 설정이 어느 쪽이든 동작하도록 두 형식을 모두 허용합니다.
+  # ID 자리에만 * 를 쓰므로 다른 저장소가 끼어들 수 없습니다.
+  # (GitHub 사용자명/저장소명에는 @ 를 쓸 수 없어 @ 가 구분자 역할을 합니다.
+  #  즉 repo:totorosi@* 는 totorosi 본인만 매칭되고 totorosi-evil 은 안 됩니다)
+  repo_owner = split("/", var.github_repository)[0]
+  repo_name  = split("/", var.github_repository)[1]
+
+  repo_patterns = [
+    var.github_repository,                        # owner/repo
+    "${local.repo_owner}@*/${local.repo_name}@*", # owner@ownerId/repo@repoId
   ]
+
+  github_subjects = flatten([
+    for rp in local.repo_patterns : concat(
+      [for b in var.github_branches : "repo:${rp}:ref:refs/heads/${b}"],
+      var.github_allow_pull_request ? ["repo:${rp}:pull_request"] : []
+    )
+  ])
 }
 
 # ####################################################################################################

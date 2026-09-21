@@ -217,3 +217,38 @@ variable "cicd_codestar_connection_arn" {
   type        = string
   default     = ""
 }
+
+# ################################################################################
+# CI 의 EKS 접근 권한
+# --------------------------------------------------------------------------------
+# GitHub Actions 가 OIDC 로 전환되면 CI 는 IAM 사용자가 아니라 역할로 붙습니다.
+# 그런데 클러스터는 bootstrap_cluster_creator_admin_permissions 로
+# "생성한 사용자"에게만 admin 을 줍니다. 그래서 역할은 처음에 거부당합니다.
+#   Error: Unauthorized
+#   Error: failed to create kubernetes rest client ... provide credentials
+#
+# 아래를 켜면 그 역할에 EKS 접근 항목(access entry)을 만들어 줍니다.
+# 역할 이름은 owner 에서 유도하므로 계정 식별 정보가 코드에 남지 않습니다.
+#   <owner>-github-actions-role   (remote-backend 가 만드는 이름과 같습니다)
+# ################################################################################
+variable "grant_ci_cluster_access" {
+  description = <<-EOT
+    GitHub Actions 역할에 EKS admin 권한을 줄지 여부.
+
+    [순서 주의] remote-backend 를 먼저 apply 해서 역할이 존재해야 합니다.
+    역할이 없는데 true 로 두면 data 조회가 실패합니다.
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "ci_role_name" {
+  description = <<-EOT
+    CI 가 쓰는 IAM 역할 이름.
+    비우면 "<owner>-github-actions-role" 을 씁니다.
+    owner 는 secret.auto.tfvars(로컬) 와 TF_VAR_OWNER(CI) 양쪽에 이미 있으므로
+    새 시크릿을 추가하지 않아도 로컬과 CI 가 같은 값을 봅니다.
+  EOT
+  type        = string
+  default     = ""
+}
