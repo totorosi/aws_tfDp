@@ -21,3 +21,16 @@ output "github_actions_role_arn" {
   EOT
   value       = aws_iam_role.github_actions.arn
 }
+
+output "codestar_connection_name" {
+  description = "GitHub 연결 이름. projects 가 이 이름으로 연결을 찾습니다"
+  value       = try(aws_codestarconnections_connection.github[0].name, "")
+}
+
+output "codestar_connection_status" {
+  description = <<-EOT
+    연결 상태. PENDING 이면 콘솔에서 승인해야 파이프라인이 돕니다.
+      콘솔 > CodePipeline > 설정 > 연결 > 보류 중인 연결 업데이트
+  EOT
+  value       = try(aws_codestarconnections_connection.github[0].connection_status, "")
+}

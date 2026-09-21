@@ -83,3 +83,21 @@ variable "github_actions_policy_arns" {
   type        = list(string)
   default     = ["arn:aws:iam::aws:policy/AdministratorAccess"]
 }
+
+# ####################################################################################################
+# GitHub 연결 (CodeStar Connection)
+# ####################################################################################################
+variable "codestar_connection_name" {
+  description = <<-EOT
+    CodePipeline 이 GitHub 를 읽을 때 쓰는 연결의 이름. 비우면 만들지 않습니다.
+
+    [중요] 이 이름은 project-module/projects 가 연결을 찾을 때 쓰는 이름과
+    정확히 같아야 합니다. projects 는 기본적으로 다음 이름으로 조회합니다.
+        <owner>-<env_type>-nginx-github      예) std15-ex-nginx-github
+
+    이름을 바꾸면 연결이 새로 만들어지고, 새 연결은 PENDING 이라
+    콘솔에서 사람이 다시 승인해야 합니다. 함부로 바꾸지 마세요.
+  EOT
+  type        = string
+  default     = ""
+}

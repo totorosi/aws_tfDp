@@ -100,6 +100,15 @@ locals {
 
   eks_admin_principal_arns = local.ci_role_name != "" ? [data.aws_iam_role.ci[0].arn] : []
 
+  # CodePipeline 이 쓸 GitHub 연결.
+  # remote-backend 가 만든 것을 이름으로 찾아 씁니다.
+  # cicd_codestar_connection_arn 을 직접 지정하면 그 값이 우선합니다.
+  cicd_connection_name   = var.cicd_connection_name != "" ? var.cicd_connection_name : "${local.tag_header}nginx-github"
+  lookup_cicd_connection = var.create_cicd && var.cicd_codestar_connection_arn == ""
+  cicd_connection_arn = var.cicd_codestar_connection_arn != "" ? var.cicd_codestar_connection_arn : try(
+    data.aws_codestarconnections_connection.cicd[0].arn, ""
+  )
+
   cluster_subnet_ids = [
     for k, v in module.network.network.subnets : v.id if v.tags["Type"] == "cluster"
   ]

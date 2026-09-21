@@ -63,3 +63,21 @@ data "aws_iam_role" "ci" {
   count = local.ci_role_name != "" ? 1 : 0
   name  = local.ci_role_name
 }
+
+
+# ################################################################################
+# GitHub 연결 조회
+# --------------------------------------------------------------------------------
+# 연결은 remote-backend 가 만들고 소유합니다. destroy 대상이 아니라서
+# 한 번 승인하면 계속 씁니다. (승인은 콘솔에서 사람이 하는 OAuth 절차)
+#
+# ARN 에는 계정 ID 가 들어가므로 코드에 적지 않고 이름으로 찾습니다.
+# 이름은 owner / env_type 에서 유도하므로 로컬과 CI 가 같은 값을 봅니다.
+#
+# [순서] remote-backend 를 먼저 apply 해서 연결이 있어야 합니다.
+# 없으면 여기서 "no matching connection found" 로 실패합니다.
+# ################################################################################
+data "aws_codestarconnections_connection" "cicd" {
+  count = local.lookup_cicd_connection ? 1 : 0
+  name  = local.cicd_connection_name
+}

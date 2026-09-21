@@ -164,5 +164,5 @@ module "cicd" {
 
   # 이미 승인된 연결이 있으면 그 ARN 을 넣으세요. 비우면 새로 만듭니다.
   # (새로 만든 연결은 콘솔에서 사람이 한 번 승인해야 합니다)
-  codestar_connection_arn = var.cicd_codestar_connection_arn
+  codestar_connection_arn = local.cicd_connection_arn
 }

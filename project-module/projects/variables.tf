@@ -252,3 +252,13 @@ variable "ci_role_name" {
   type        = string
   default     = ""
 }
+
+variable "cicd_connection_name" {
+  description = <<-EOT
+    remote-backend 가 만든 GitHub 연결의 이름.
+    비우면 "<owner>-<env_type>-nginx-github" 를 씁니다.
+    remote-backend 의 codestar_connection_name 과 같아야 합니다.
+  EOT
+  type        = string
+  default     = ""
+}

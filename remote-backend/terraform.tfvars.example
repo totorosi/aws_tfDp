@@ -16,3 +16,7 @@ tag_header = "<본인-IAM-사용자명>-"
 # 이 계정에 GitHub OIDC 공급자가 이미 있으면 false 로 두세요.
 #   aws iam list-open-id-connect-providers | grep githubusercontent
 create_github_oidc_provider = true
+
+# CodePipeline 이 GitHub 를 읽을 때 쓰는 연결 이름.
+# projects 가 "<owner>-<env_type>-nginx-github" 로 조회하므로 그 값과 같아야 합니다.
+codestar_connection_name = "<본인-IAM-사용자명>-ex-nginx-github"
