@@ -22,7 +22,7 @@ terraform {
     }
     helm = {
       source  = "hashicorp/helm"
-      version = "~> 2.12.1" # 락 파일이 고정한 버전. 에디터가 보는 스키마도 여기에 맞춰집니다
+      version = "~> 3.0" # 3.0 에서 set / kubernetes 가 블록에서 속성으로 바뀜
     }
 
     # 아래 4개는 코드에서 쓰고 있지만 선언이 빠져 있던 것들입니다.
@@ -100,10 +100,11 @@ provider "kubernetes" {
 }
 
 provider "helm" {
-  kubernetes {
+  # helm 3.0 부터 kubernetes 는 블록이 아니라 객체 속성입니다.
+  kubernetes = {
     host                   = module.eks.cluster_endpoint
     cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-    exec {
+    exec = {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"
       args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]

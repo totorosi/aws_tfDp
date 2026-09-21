@@ -6,7 +6,7 @@ terraform {
     }
     helm = {
       source  = "hashicorp/helm"
-      version = "~> 2.12.1" # 락 파일이 고정한 버전. 에디터가 보는 스키마도 여기에 맞춰집니다
+      version = "~> 3.0" # 3.0 에서 set / kubernetes 가 블록에서 속성으로 바뀜
     }
     kubectl = {
       source  = "gavinbunney/kubectl"

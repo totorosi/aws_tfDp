@@ -2,11 +2,14 @@
   "version": "0.2",
   "language": "en",
   "words": [
-    "tfstate", "tfvars", "tfplan", "terraformrc", "envrc", "hashicorp",
-    "gavinbunney", "kubectl", "kubeconfig", "ehthumbs", "noncurrent",
-    "dynamodb", "serverlessrepo", "secretsmanager", "AKIA", "ASIA",
-    "vpce", "nacl", "IRSA", "subnets", "autoscaling", "bipa", "totorosi",
-    "eksctl", "kustomization", "argocd", "noreply", "OIDC", "PITR"
+    "AKIA", "ASIA", "IRSA", "OIDC", "PITR",
+    "appspec", "argocd", "autoscaling", "bipa", "buildspec",
+    "codebuild", "codedeploy", "codepipeline", "codestar", "crds",
+    "dynamodb", "ehthumbs", "eksctl", "envrc", "finalizer", "finalizers",
+    "gavinbunney", "hashicorp", "kubeconfig", "kubectl", "kustomization",
+    "nacl", "noncurrent", "noreply", "secretsmanager", "serverlessrepo",
+    "serviceaccount", "subnets", "terraformrc", "tfplan", "tfstate", "tfvars",
+    "totorosi", "vpce"
   ],
   "ignorePaths": [
     ".git/**", "**/.terraform/**", "*.lock.hcl"

@@ -2,21 +2,29 @@
   // ##################################################################################
   // Terraform 확장 설정
   // ----------------------------------------------------------------------------------
-  // [왜 필요한가]
-  // 확장은 디렉터리에 .terraform 이 없으면 레지스트리의 "최신" 프로바이더 스키마로
-  // 검사합니다. helm 은 3.0 에서 문법이 바뀌었기 때문에(set{} -> set=[],
-  // kubernetes{} -> kubernetes={}), 2.x 로 짠 코드가 빨갛게 표시됩니다.
+  // [배경]
+  // 확장은 프로바이더 스키마로 코드를 검사합니다. 이 프로젝트는 helm 3.x 를 쓰며
+  // 코드도 3.x 문법으로 맞춰 두었습니다.
+  //     2.x   set { name = ... }   /  kubernetes { ... }
+  //     3.x   set = [{ ... }]      /  kubernetes = { ... }   <- 현재 코드
   //
-  // 실제 해결은 각 모듈에서 terraform init 을 한 번 돌려 스키마를 받는 것입니다.
-  //   cd project-module/modules/<모듈> && terraform init -backend=false
-  // 이 저장소는 모든 모듈에 이미 돌려 두었습니다.
+  // [모듈에서 빨간 줄이 보이면]
+  // 해당 모듈 디렉터리에 프로바이더 스키마가 없어서입니다. 이렇게 받습니다.
+  //     cd project-module/modules/<모듈> && terraform init -backend=false
   //
-  // 빨간 줄이 보이면 판단 기준은 항상 이것입니다.
-  //   cd project-module/projects && terraform validate
-  //   Success 면 에디터 오탐, Error 면 진짜 문제.
+  // 반드시 Windows 에서 실행하세요. WSL 에서 돌리면 linux_amd64 플러그인만 깔리는데
+  // 이 확장은 Windows 에서 동작해 windows_amd64 를 찾습니다. 그러면 스키마를 못 읽고
+  // 레지스트리 최신 버전 기준으로 검사해 오탐이 납니다.
+  //
+  // [최종 판단은 언제나]
+  //     cd project-module/projects && terraform validate
   // ##################################################################################
 
-  // 인덱싱에서 제외할 디렉터리 (맥 압축 부산물과 프로바이더 캐시)
+  // 코드를 helm 3.x 문법으로 올렸으므로 검증을 켜 둡니다.
+  // (끄는 것은 회피일 뿐이라 원인을 고쳤습니다)
+  "terraform.validation.enableEnhancedValidation": true,
+
+  // 인덱싱에서 제외 (프로바이더 캐시와 맥 압축 부산물)
   "terraform.languageServer.indexing.ignoreDirectoryNames": [
     ".terraform",
     "__MACOSX"
@@ -33,12 +41,15 @@
     "editor.tabSize": 2
   },
 
-  // 확장자가 달라 인식 못 하는 파일들을 올바른 문법으로 잡아 줍니다.
+  // 확장자가 달라 인식하지 못하는 파일들을 올바른 문법으로 잡아 줍니다.
   "files.associations": {
     "*.tfvars.example": "terraform-vars",
     "backend.hcl": "terraform-vars",
     "backend.hcl.example": "terraform-vars"
   },
+
+  // 맞춤법 단어 목록은 저장소 루트의 cspell.json 에 있습니다.
+  // 그쪽이 정식 위치라 여기에 중복해서 두지 않습니다.
 
   "files.trimTrailingWhitespace": true,
   "files.insertFinalNewline": true

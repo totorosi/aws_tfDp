@@ -342,7 +342,7 @@ resource "kubectl_manifest" "crd" {
 
 
 # ================================================================================
-# amserviceaccount 생성
+# ServiceAccount 생성
 # --------------------------------------------------------------------------------
 # 1. IAM 역할 생성 및 OIDC 신뢰 관계 설정 (IRSA)
 data "aws_iam_policy_document" "lb_controller_assume" {
@@ -397,30 +397,33 @@ resource "helm_release" "aws_load_balancer_controller" {
   chart      = "aws-load-balancer-controller"
   namespace  = "kube-system"
 
-  set {
-    name  = "clusterName"
-    value = "${local.tag_header}eks-cluster"
-  }
-
-  set {
-    name  = "serviceAccount.create"
-    value = "false"
-  }
-
-  set {
-    name  = "serviceAccount.name"
-    value = "aws-load-balancer-controller"
-  }
-
-  set {
-    name  = "region"
-    value = local.region
-  }
-
-  set {
-    name  = "vpcId"
-    value = local.vpc_id
-  }
+  # helm 프로바이더 3.0 부터 set 은 블록이 아니라 리스트 속성입니다.
+  #   2.x   set { name = ... }
+  #   3.x   set = [{ name = ... }]
+  set = [
+    {
+      name  = "clusterName"
+      value = "${local.tag_header}eks-cluster"
+    },
+    {
+      # 아래 ServiceAccount 는 IRSA 어노테이션을 붙여 직접 만들므로
+      # 차트가 또 만들지 않도록 끕니다.
+      name  = "serviceAccount.create"
+      value = "false"
+    },
+    {
+      name  = "serviceAccount.name"
+      value = "aws-load-balancer-controller"
+    },
+    {
+      name  = "region"
+      value = local.region
+    },
+    {
+      name  = "vpcId"
+      value = local.vpc_id
+    },
+  ]
 
   # ----------------------------------------------------------------------------
   # [중요] 아래 셋보다 "나중에" 만들어지고 "먼저" 파괴되어야 합니다.
