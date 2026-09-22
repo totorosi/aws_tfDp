@@ -16,27 +16,27 @@ module "network" {
 }
 
 # --------------------------------------------------------------------------------
-module "eks" {
-  source = "../modules/eks"
+# module "eks" {
+# source = "../modules/eks"
 
-  key_pair   = local.key_pair
-  tag_header = local.tag_header
-  region     = local.region
+# key_pair   = local.key_pair
+# tag_header = local.tag_header
+# region     = local.region
 
-  # VPC 와 서브넷을 값으로 넘겨주면 network -> eks 의존 관계가 그래프에 생겨
-  # Terraform 이 순서를 알아서 보장합니다. (depends_on 불필요)
-  vpc_id             = local.vpc_id
-  cluster_subnet_ids = local.cluster_subnet_ids
+# VPC 와 서브넷을 값으로 넘겨주면 network -> eks 의존 관계가 그래프에 생겨
+# Terraform 이 순서를 알아서 보장합니다. (depends_on 불필요)
+# vpc_id             = local.vpc_id
+# cluster_subnet_ids = local.cluster_subnet_ids
 
-  # [중요] 인터넷 경로(NAT/라우팅)를 값으로 받아 의존 간선을 만듭니다.
-  # 이게 없으면 destroy 때 EKS 정리 도중에 NAT 가 먼저 사라져
-  # 노드가 NotReady 가 되고 Ingress finalizer 가 남습니다.
-  network_internet_path = module.network.internet_path
+# [중요] 인터넷 경로(NAT/라우팅)를 값으로 받아 의존 간선을 만듭니다.
+# 이게 없으면 destroy 때 EKS 정리 도중에 NAT 가 먼저 사라져
+# 노드가 NotReady 가 되고 Ingress finalizer 가 남습니다.
+# network_internet_path = module.network.internet_path
 
-  # CI(GitHub Actions) 역할에 클러스터 admin 을 부여합니다.
-  # 이게 없으면 OIDC 로 전환한 CI 가 kubernetes/helm 프로바이더에서 Unauthorized 로 막힙니다.
-  eks_admin_principal_arns = local.eks_admin_principal_arns
-}
+# CI(GitHub Actions) 역할에 클러스터 admin 을 부여합니다.
+# 이게 없으면 OIDC 로 전환한 CI 가 kubernetes/helm 프로바이더에서 Unauthorized 로 막힙니다.
+# eks_admin_principal_arns = local.eks_admin_principal_arns
+# }
 
 # --------------------------------------------------------------------------------
 # ArgoCD + Ingress (GitOps 배포 진입점)
@@ -56,23 +56,23 @@ module "eks" {
 #
 # 예전에는 argocd 모듈이 자체 provider 블록을 갖고 있어 이 depends_on 을 쓸 수
 # 없었습니다. provider 설정을 provider.tf(루트)로 옮겨서 풀었습니다.
-module "argocd" {
-  source = "../modules/argocd"
+# module "argocd" {
+# source = "../modules/argocd"
 
-  depends_on = [module.eks]
+# depends_on = [module.eks]
 
-  tag_header = local.tag_header
+# tag_header = local.tag_header
 
-  # ArgoCD 가 바라볼 Git 저장소. k8s/app 의 매니페스트를 클러스터에 맞춥니다.
-  git_repo_url        = var.argocd_repo_url
-  git_target_revision = var.argocd_target_revision
-  git_path            = var.argocd_path
+# ArgoCD 가 바라볼 Git 저장소. k8s/app 의 매니페스트를 클러스터에 맞춥니다.
+# git_repo_url        = var.argocd_repo_url
+# git_target_revision = var.argocd_target_revision
+# git_path            = var.argocd_path
 
-  # UI 접속용 ALB. 도메인을 쓰지 않으므로 ALB 기본 주소로 접속합니다.
-  # 인증서 ARN 을 지정하면 HTTPS 도 함께 엽니다. (기본값은 HTTP 만)
-  create_ingress  = var.argocd_create_ingress
-  certificate_arn = var.argocd_certificate_arn
-}
+# UI 접속용 ALB. 도메인을 쓰지 않으므로 ALB 기본 주소로 접속합니다.
+# 인증서 ARN 을 지정하면 HTTPS 도 함께 엽니다. (기본값은 HTTP 만)
+# create_ingress  = var.argocd_create_ingress
+# certificate_arn = var.argocd_certificate_arn
+# }
 
 # --------------------------------------------------------------------------------
 # 범용 비공개 S3 스토리지. s3-website 가 퍼블릭 정적 사이트라면 이쪽은 그 반대입니다.

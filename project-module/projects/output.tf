@@ -33,35 +33,35 @@ output "mysql_security_group_id" {
 # ################################################################################
 # EKS
 # ================================================================================
-output "eks_cluster_name" {
-  description = "EKS 클러스터 이름"
-  value       = module.eks.cluster_name
-}
+# output "eks_cluster_name" {
+# description = "EKS 클러스터 이름"
+# value       = module.eks.cluster_name
+# }
 
-output "eks_cluster_endpoint" {
-  description = "쿠버네티스 API 서버 엔드포인트"
-  value       = module.eks.cluster_endpoint
-}
+# output "eks_cluster_endpoint" {
+# description = "쿠버네티스 API 서버 엔드포인트"
+# value       = module.eks.cluster_endpoint
+# }
 
-output "eks_cluster_version" {
-  description = "EKS 컨트롤 플레인 쿠버네티스 버전"
-  value       = module.eks.cluster_version
-}
+# output "eks_cluster_version" {
+# description = "EKS 컨트롤 플레인 쿠버네티스 버전"
+# value       = module.eks.cluster_version
+# }
 
-output "eks_oidc_provider_arn" {
-  description = "IRSA 용 OIDC 공급자 ARN"
-  value       = module.eks.oidc_provider_arn
-}
+# output "eks_oidc_provider_arn" {
+# description = "IRSA 용 OIDC 공급자 ARN"
+# value       = module.eks.oidc_provider_arn
+# }
 
-output "eks_node_group_name" {
-  description = "관리형 노드 그룹 이름"
-  value       = module.eks.node_group_name
-}
+# output "eks_node_group_name" {
+# description = "관리형 노드 그룹 이름"
+# value       = module.eks.node_group_name
+# }
 
-output "eks_kubeconfig_command" {
-  description = "이 클러스터에 접속하기 위한 명령어"
-  value       = module.eks.kubeconfig_command
-}
+# output "eks_kubeconfig_command" {
+# description = "이 클러스터에 접속하기 위한 명령어"
+# value       = module.eks.kubeconfig_command
+# }
 
 # ################################################################################
 # Static Web Site (S3)
@@ -146,30 +146,30 @@ output "tag_header" {
 # ################################################################################
 # ArgoCD
 # ================================================================================
-output "argocd_namespace" {
-  description = "ArgoCD 네임스페이스"
-  value       = module.argocd.namespace
-}
+# output "argocd_namespace" {
+# description = "ArgoCD 네임스페이스"
+# value       = module.argocd.namespace
+# }
 
-output "argocd_url" {
-  description = "ArgoCD UI 접속 주소"
-  value       = module.argocd.url
-}
+# output "argocd_url" {
+# description = "ArgoCD UI 접속 주소"
+# value       = module.argocd.url
+# }
 
-output "argocd_alb_hostname" {
-  description = "ArgoCD UI 의 ALB 기본 주소"
-  value       = module.argocd.ingress_hostname
-}
+# output "argocd_alb_hostname" {
+# description = "ArgoCD UI 의 ALB 기본 주소"
+# value       = module.argocd.ingress_hostname
+# }
 
-output "argocd_initial_password_command" {
-  description = "ArgoCD admin 초기 비밀번호 조회 명령"
-  value       = module.argocd.initial_password_command
-}
+# output "argocd_initial_password_command" {
+# description = "ArgoCD admin 초기 비밀번호 조회 명령"
+# value       = module.argocd.initial_password_command
+# }
 
-output "argocd_application_name" {
-  description = "생성된 ArgoCD Application 이름"
-  value       = module.argocd.application_name
-}
+# output "argocd_application_name" {
+# description = "생성된 ArgoCD Application 이름"
+# value       = module.argocd.application_name
+# }
 
 
 # ################################################################################

@@ -63,4 +63,6 @@ ec2_associate_public_ip = true
 # [순서] remote-backend 를 먼저 apply 해서 역할이 존재해야 합니다.
 # 역할 이름은 owner 에서 유도합니다: <owner>-github-actions-role
 # ################################################################################
-grant_ci_cluster_access = true
+# EKS 를 주석 처리했으므로 클러스터 접근 항목도 만들지 않습니다.
+# EKS 를 다시 켜면 true 로 되돌리세요.
+grant_ci_cluster_access = false
