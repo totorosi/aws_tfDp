@@ -25,10 +25,10 @@ output "subnets_by_type" {
   }
 }
 
-output "mysql_security_group_id" {
-  description = "MySQL 용 보안 그룹 ID"
-  value       = module.network.mysql_sg
-}
+# output "mysql_security_group_id" {
+# description = "MySQL 용 보안 그룹 ID"
+# value       = module.network.mysql_sg
+# }
 
 # ################################################################################
 # EKS
@@ -66,15 +66,15 @@ output "mysql_security_group_id" {
 # ################################################################################
 # Static Web Site (S3)
 # ================================================================================
-output "website_bucket_name" {
-  description = "정적 웹사이트용 S3 버킷 이름"
-  value       = module.static_web_site.bucket_name
-}
+# output "website_bucket_name" {
+# description = "정적 웹사이트용 S3 버킷 이름"
+# value       = module.static_web_site.bucket_name
+# }
 
-output "website_url" {
-  description = "브라우저에서 바로 열 수 있는 정적 웹사이트 주소"
-  value       = module.static_web_site.website_url
-}
+# output "website_url" {
+# description = "브라우저에서 바로 열 수 있는 정적 웹사이트 주소"
+# value       = module.static_web_site.website_url
+# }
 
 # ################################################################################
 # Database (RDS + Proxy + Secrets Manager)
@@ -82,53 +82,53 @@ output "website_url" {
 # module "rds" 가 count 를 쓰므로 [0] 인덱스로 접근하고,
 # create_rds = false 일 때는 try 로 빈 값을 돌려줍니다.
 # ################################################################################
-output "rds_cluster_endpoint" {
-  description = "RDS 클러스터 쓰기(Writer) 엔드포인트"
-  value       = try(module.rds[0].cluster_endpoint, "")
-}
+# output "rds_cluster_endpoint" {
+# description = "RDS 클러스터 쓰기(Writer) 엔드포인트"
+# value       = try(module.rds[0].cluster_endpoint, "")
+# }
 
-output "rds_reader_endpoint" {
-  description = "RDS 클러스터 읽기(Reader) 엔드포인트"
-  value       = try(module.rds[0].cluster_reader_endpoint, "")
-}
+# output "rds_reader_endpoint" {
+# description = "RDS 클러스터 읽기(Reader) 엔드포인트"
+# value       = try(module.rds[0].cluster_reader_endpoint, "")
+# }
 
-output "rds_proxy_endpoint" {
-  description = "RDS Proxy 엔드포인트 (애플리케이션은 이 주소로 접속합니다)"
-  value       = try(module.rds[0].proxy_endpoint, "")
-}
+# output "rds_proxy_endpoint" {
+# description = "RDS Proxy 엔드포인트 (애플리케이션은 이 주소로 접속합니다)"
+# value       = try(module.rds[0].proxy_endpoint, "")
+# }
 
-output "rds_database_name" {
-  description = "최초 생성되는 데이터베이스 이름"
-  value       = try(module.rds[0].database_name, "")
-}
+# output "rds_database_name" {
+# description = "최초 생성되는 데이터베이스 이름"
+# value       = try(module.rds[0].database_name, "")
+# }
 
-output "rds_master_username" {
-  description = "RDS 마스터 사용자 이름"
-  value       = try(module.rds[0].master_username, "")
-}
+# output "rds_master_username" {
+# description = "RDS 마스터 사용자 이름"
+# value       = try(module.rds[0].master_username, "")
+# }
 
-output "rds_secret_name" {
-  description = "DB 접속 정보가 담긴 Secrets Manager 시크릿 이름"
-  value       = try(module.rds[0].secret_name, "")
-}
+# output "rds_secret_name" {
+# description = "DB 접속 정보가 담긴 Secrets Manager 시크릿 이름"
+# value       = try(module.rds[0].secret_name, "")
+# }
 
-output "rds_get_password_command" {
-  description = "DB 비밀번호 조회 명령 (비밀번호 자체는 출력하지 않습니다)"
-  value       = try(module.rds[0].get_secret_command, "")
-}
+# output "rds_get_password_command" {
+# description = "DB 비밀번호 조회 명령 (비밀번호 자체는 출력하지 않습니다)"
+# value       = try(module.rds[0].get_secret_command, "")
+# }
 
 # ################################################################################
 # store (범용 비공개 S3)
 # ################################################################################
-output "store_bucket_name" {
-  description = "범용 스토리지 버킷 이름"
-  value       = module.store.bucket_name
-}
+# output "store_bucket_name" {
+# description = "범용 스토리지 버킷 이름"
+# value       = module.store.bucket_name
+# }
 
-output "store_bucket_arn" {
-  description = "범용 스토리지 버킷 ARN"
-  value       = module.store.bucket_arn
-}
+# output "store_bucket_arn" {
+# description = "범용 스토리지 버킷 ARN"
+# value       = module.store.bucket_arn
+# }
 
 # ################################################################################
 # 공통 정보

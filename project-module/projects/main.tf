@@ -77,41 +77,41 @@ module "network" {
 # --------------------------------------------------------------------------------
 # 범용 비공개 S3 스토리지. s3-website 가 퍼블릭 정적 사이트라면 이쪽은 그 반대입니다.
 # 퍼블릭 차단 + 버전 관리 + SSE + HTTPS 강제 정책이 들어갑니다.
-module "store" {
-  source = "../modules/store"
+# module "store" {
+# source = "../modules/store"
 
-  bucket_name = var.store_bucket_name
-  tag_header  = local.tag_header
+# bucket_name = var.store_bucket_name
+# tag_header  = local.tag_header
 
-  lifecycle_rules = var.store_lifecycle_rules
-}
+# lifecycle_rules = var.store_lifecycle_rules
+# }
 
 # --------------------------------------------------------------------------------
-module "static_web_site" {
-  source = "../modules/s3-website"
+# module "static_web_site" {
+# source = "../modules/s3-website"
 
-  tag_header = local.tag_header
-}
+# tag_header = local.tag_header
+# }
 
 # --------------------------------------------------------------------------------
 # RDS Multi-AZ DB 클러스터 + RDS Proxy + Secrets Manager 자동 순환
 # [비용 주의] sa-east-1 에서 쓸 수 있는 최소 사양이 db.m5d.large 이고
 # Multi-AZ 클러스터는 인스턴스를 3대 띄웁니다. 실습이 끝나면 바로 정리하세요.
 # 쓰지 않을 때는 terraform.tfvars 에서 create_rds = false 로 두면 됩니다.
-module "rds" {
-  source = "../modules/database"
-  count  = var.create_rds ? 1 : 0
+# module "rds" {
+# source = "../modules/database"
+# count  = var.create_rds ? 1 : 0
 
-  tag_header  = local.tag_header
-  vpc_id      = local.vpc_id
-  region      = local.region
-  mysql_sg_id = local.mysql_sg_id
+# tag_header  = local.tag_header
+# vpc_id      = local.vpc_id
+# region      = local.region
+# mysql_sg_id = local.mysql_sg_id
 
-  # network 모듈 출력값 전달. data 소스로 조회하지 않습니다.
-  db_subnet_ids = local.private_subnet_ids
+# network 모듈 출력값 전달. data 소스로 조회하지 않습니다.
+# db_subnet_ids = local.private_subnet_ids
 
-  db_cluster_instance_class = var.db_cluster_instance_class
-}
+# db_cluster_instance_class = var.db_cluster_instance_class
+# }
 
 # --------------------------------------------------------------------------------
 # 범용 EC2. CodePipeline 을 켜면 이 인스턴스들이 CodeDeploy 배포 대상이 됩니다.
