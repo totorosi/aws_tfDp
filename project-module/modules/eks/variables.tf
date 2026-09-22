@@ -44,3 +44,16 @@ variable "cluster_subnet_ids" {
   description = "EKS 클러스터/노드가 사용할 서브넷 ID 목록 (Type=cluster 서브넷)"
   type        = list(string)
 }
+
+variable "network_internet_path" {
+  description = <<-EOT
+    network 모듈의 internet_path 출력값.
+    값은 쓰지 않고 의존 관계를 만들기 위해서만 받습니다.
+
+    노드는 NAT 를 거쳐 컨트롤 플레인과 통신합니다. 이 의존이 없으면 destroy 때
+    Terraform 이 EKS 정리 도중에 NAT 와 라우팅을 먼저 지워버려,
+    노드가 NotReady 가 되고 LB Controller 가 죽어 Ingress finalizer 가 남습니다.
+  EOT
+  type        = string
+  default     = ""
+}

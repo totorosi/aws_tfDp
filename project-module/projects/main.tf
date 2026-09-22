@@ -28,6 +28,11 @@ module "eks" {
   vpc_id             = local.vpc_id
   cluster_subnet_ids = local.cluster_subnet_ids
 
+  # [중요] 인터넷 경로(NAT/라우팅)를 값으로 받아 의존 간선을 만듭니다.
+  # 이게 없으면 destroy 때 EKS 정리 도중에 NAT 가 먼저 사라져
+  # 노드가 NotReady 가 되고 Ingress finalizer 가 남습니다.
+  network_internet_path = module.network.internet_path
+
   # CI(GitHub Actions) 역할에 클러스터 admin 을 부여합니다.
   # 이게 없으면 OIDC 로 전환한 CI 가 kubernetes/helm 프로바이더에서 Unauthorized 로 막힙니다.
   eks_admin_principal_arns = local.eks_admin_principal_arns

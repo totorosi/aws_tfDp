@@ -227,7 +227,12 @@ resource "aws_eks_node_group" "eks_node_group" {
   }
 
   depends_on = [
-    aws_iam_role_policy_attachment.node_policy
+    aws_iam_role_policy_attachment.node_policy,
+
+    # [중요] 인터넷 경로(NAT/라우팅)보다 먼저 파괴되어야 합니다.
+    # 노드가 NAT 를 잃으면 NotReady 가 되고, 그 위의 LB Controller 와 ArgoCD 가
+    # 죽어서 Ingress finalizer 를 떼지 못합니다. 그러면 ALB 가 고아가 됩니다.
+    null_resource.network_ready,
   ]
 
 }
@@ -450,4 +455,21 @@ resource "helm_release" "aws_load_balancer_controller" {
     kubectl_manifest.crd,
     kubernetes_service_account_v1.lb_controller,
   ]
+}
+
+# ####################################################################################################
+# 네트워크 경로 의존 고정
+# ====================================================================================================
+# 노드 그룹이 이 리소스에 의존하고, 이 리소스는 network 의 라우팅/NAT 에 의존합니다.
+# destroy 는 의존 역순이므로 아래 순서가 보장됩니다.
+#
+#   ArgoCD -> Ingress -> LB Controller -> 노드 그룹 -> [이 리소스] -> 라우팅 -> NAT -> IGW -> VPC
+#
+# 즉 노드가 살아 있는 동안 컨트롤러가 ALB 를 회수하고, 그게 끝난 뒤에야
+# 인터넷 경로가 사라집니다.
+# ####################################################################################################
+resource "null_resource" "network_ready" {
+  triggers = {
+    internet_path = var.network_internet_path
+  }
 }
